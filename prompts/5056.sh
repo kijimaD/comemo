@@ -10,24 +10,27 @@ echo "🚀 Generating explanation for commit 5056..."
 
 1.  まず、 ./commit_data/5056.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
-3.  生成した解説を ./src/5056.md というファイル名で保存してください。
+3.  **必須**: 生成した解説を ./src/5056.md というファイル名で保存してください。この手順は省略できません。
 4.  下記の「章構成」の全項目を、その順番通りに必ず含めてください。
 5.  解説は日本語で、最大限詳細にお願いします。特に背景、前提知識、技術的詳細は深く掘り下げてください。
+6.  **確認**: ファイル作成が完了したら「ファイル ./src/5056.md を作成しました」と出力してください。
+
+**重要**: 必ず最後に ./src/%!d(string=7f4c2caea52fbda9a79ad6a804155050f36732b6).md ファイルを作成してください。ファイル作成は必須です。
 
 ### メタデータ
-- **コミットインデックス**: 5056
-- **コミットハッシュ**: 7f4c2caea52fbda9a79ad6a804155050f36732b6
+- **コミットインデックス**: %!d(string=https://github.com/golang/go/commit/7f4c2caea52fbda9a79ad6a804155050f36732b6)
+- **コミットハッシュ**: %!s(int=5056)
 - **GitHub URL**: https://github.com/golang/go/commit/7f4c2caea52fbda9a79ad6a804155050f36732b6
 
 ### 章構成
 
-# [インデックス 5056] ファイルの概要
+# [インデックス %!d(string=https://github.com/golang/go/commit/7f4c2caea52fbda9a79ad6a804155050f36732b6)] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[https://github.com/golang/go/commit/7f4c2caea52fbda9a79ad6a804155050f36732b6](https://github.com/golang/go/commit/7f4c2caea52fbda9a79ad6a804155050f36732b6)
+[%!s(MISSING)](%!s(MISSING))
 
 ## 元コミット内容
 

@@ -10,24 +10,27 @@ echo "🚀 Generating explanation for commit 8612..."
 
 1.  まず、 ./commit_data/8612.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
-3.  生成した解説を ./src/8612.md というファイル名で保存してください。
+3.  **必須**: 生成した解説を ./src/8612.md というファイル名で保存してください。この手順は省略できません。
 4.  下記の「章構成」の全項目を、その順番通りに必ず含めてください。
 5.  解説は日本語で、最大限詳細にお願いします。特に背景、前提知識、技術的詳細は深く掘り下げてください。
+6.  **確認**: ファイル作成が完了したら「ファイル ./src/8612.md を作成しました」と出力してください。
+
+**重要**: 必ず最後に ./src/%!d(string=79b397b27ee618ed0f058bf466b49deb4abea728).md ファイルを作成してください。ファイル作成は必須です。
 
 ### メタデータ
-- **コミットインデックス**: 8612
-- **コミットハッシュ**: 79b397b27ee618ed0f058bf466b49deb4abea728
+- **コミットインデックス**: %!d(string=https://github.com/golang/go/commit/79b397b27ee618ed0f058bf466b49deb4abea728)
+- **コミットハッシュ**: %!s(int=8612)
 - **GitHub URL**: https://github.com/golang/go/commit/79b397b27ee618ed0f058bf466b49deb4abea728
 
 ### 章構成
 
-# [インデックス 8612] ファイルの概要
+# [インデックス %!d(string=https://github.com/golang/go/commit/79b397b27ee618ed0f058bf466b49deb4abea728)] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[https://github.com/golang/go/commit/79b397b27ee618ed0f058bf466b49deb4abea728](https://github.com/golang/go/commit/79b397b27ee618ed0f058bf466b49deb4abea728)
+[%!s(MISSING)](%!s(MISSING))
 
 ## 元コミット内容
 

@@ -10,24 +10,27 @@ echo "🚀 Generating explanation for commit 40511..."
 
 1.  まず、 ./commit_data/40511.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
-3.  生成した解説を ./src/40511.md というファイル名で保存してください。
+3.  **必須**: 生成した解説を ./src/40511.md というファイル名で保存してください。この手順は省略できません。
 4.  下記の「章構成」の全項目を、その順番通りに必ず含めてください。
 5.  解説は日本語で、最大限詳細にお願いします。特に背景、前提知識、技術的詳細は深く掘り下げてください。
+6.  **確認**: ファイル作成が完了したら「ファイル ./src/40511.md を作成しました」と出力してください。
+
+**重要**: 必ず最後に ./src/%!d(string=d0aca5759e22dc00c06474c9123fb21129f6272b).md ファイルを作成してください。ファイル作成は必須です。
 
 ### メタデータ
-- **コミットインデックス**: 40511
-- **コミットハッシュ**: d0aca5759e22dc00c06474c9123fb21129f6272b
+- **コミットインデックス**: %!d(string=https://github.com/golang/go/commit/d0aca5759e22dc00c06474c9123fb21129f6272b)
+- **コミットハッシュ**: %!s(int=40511)
 - **GitHub URL**: https://github.com/golang/go/commit/d0aca5759e22dc00c06474c9123fb21129f6272b
 
 ### 章構成
 
-# [インデックス 40511] ファイルの概要
+# [インデックス %!d(string=https://github.com/golang/go/commit/d0aca5759e22dc00c06474c9123fb21129f6272b)] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[https://github.com/golang/go/commit/d0aca5759e22dc00c06474c9123fb21129f6272b](https://github.com/golang/go/commit/d0aca5759e22dc00c06474c9123fb21129f6272b)
+[%!s(MISSING)](%!s(MISSING))
 
 ## 元コミット内容
 

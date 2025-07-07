@@ -10,24 +10,27 @@ echo "🚀 Generating explanation for commit 32897..."
 
 1.  まず、 ./commit_data/32897.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
-3.  生成した解説を ./src/32897.md というファイル名で保存してください。
+3.  **必須**: 生成した解説を ./src/32897.md というファイル名で保存してください。この手順は省略できません。
 4.  下記の「章構成」の全項目を、その順番通りに必ず含めてください。
 5.  解説は日本語で、最大限詳細にお願いします。特に背景、前提知識、技術的詳細は深く掘り下げてください。
+6.  **確認**: ファイル作成が完了したら「ファイル ./src/32897.md を作成しました」と出力してください。
+
+**重要**: 必ず最後に ./src/%!d(string=8546aa2e4b6a2898b52f5fd58f0e522ddf590572).md ファイルを作成してください。ファイル作成は必須です。
 
 ### メタデータ
-- **コミットインデックス**: 32897
-- **コミットハッシュ**: 8546aa2e4b6a2898b52f5fd58f0e522ddf590572
+- **コミットインデックス**: %!d(string=https://github.com/golang/go/commit/8546aa2e4b6a2898b52f5fd58f0e522ddf590572)
+- **コミットハッシュ**: %!s(int=32897)
 - **GitHub URL**: https://github.com/golang/go/commit/8546aa2e4b6a2898b52f5fd58f0e522ddf590572
 
 ### 章構成
 
-# [インデックス 32897] ファイルの概要
+# [インデックス %!d(string=https://github.com/golang/go/commit/8546aa2e4b6a2898b52f5fd58f0e522ddf590572)] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[https://github.com/golang/go/commit/8546aa2e4b6a2898b52f5fd58f0e522ddf590572](https://github.com/golang/go/commit/8546aa2e4b6a2898b52f5fd58f0e522ddf590572)
+[%!s(MISSING)](%!s(MISSING))
 
 ## 元コミット内容
 
