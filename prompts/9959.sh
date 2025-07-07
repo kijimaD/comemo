@@ -10,24 +10,24 @@ echo "🚀 Generating explanation for commit 9959..."
 
 1.  まず、 ./commit_data/9959.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
-3.  生成した解説を ./src/9959.md というファイル名で保存してください。
+3.  生成した解説を**標準出力のみ**に出力してください。ファイル保存は行わないでください。
 4.  下記の「章構成」の全項目を、その順番通りに必ず含めてください。
 5.  解説は日本語で、最大限詳細にお願いします。特に背景、前提知識、技術的詳細は深く掘り下げてください。
 
 ### メタデータ
 - **コミットインデックス**: 9959
-- **コミットハッシュ**: 38fb09b4122ed6f6bfac02f9d0b82723c17988ad
-- **GitHub URL**: https://github.com/golang/go/commit/38fb09b4122ed6f6bfac02f9d0b82723c17988ad
+- **コミットハッシュ**: %!s(int=9959)
+- **GitHub URL**: 38fb09b4122ed6f6bfac02f9d0b82723c17988ad
 
 ### 章構成
 
-# [インデックス 9959] ファイルの概要
+# [インデックス %!d(string=https://github.com/golang/go/commit/38fb09b4122ed6f6bfac02f9d0b82723c17988ad)] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[https://github.com/golang/go/commit/38fb09b4122ed6f6bfac02f9d0b82723c17988ad](https://github.com/golang/go/commit/38fb09b4122ed6f6bfac02f9d0b82723c17988ad)
+[%!s(int=9959)](https://github.com/golang/go/commit/38fb09b4122ed6f6bfac02f9d0b82723c17988ad)
 
 ## 元コミット内容
 
@@ -44,5 +44,5 @@ echo "🚀 Generating explanation for commit 9959..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-
+%!(EXTRA string=https://github.com/golang/go/commit/38fb09b4122ed6f6bfac02f9d0b82723c17988ad)
 EOF

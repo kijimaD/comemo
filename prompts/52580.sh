@@ -10,24 +10,24 @@ echo "🚀 Generating explanation for commit 52580..."
 
 1.  まず、 ./commit_data/52580.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
-3.  生成した解説を ./src/52580.md というファイル名で保存してください。
+3.  生成した解説を**標準出力のみ**に出力してください。ファイル保存は行わないでください。
 4.  下記の「章構成」の全項目を、その順番通りに必ず含めてください。
 5.  解説は日本語で、最大限詳細にお願いします。特に背景、前提知識、技術的詳細は深く掘り下げてください。
 
 ### メタデータ
 - **コミットインデックス**: 52580
-- **コミットハッシュ**: 857cda4625b31d6725fb96148da2a5fca58df2cb
-- **GitHub URL**: https://github.com/golang/go/commit/857cda4625b31d6725fb96148da2a5fca58df2cb
+- **コミットハッシュ**: %!s(int=52580)
+- **GitHub URL**: 857cda4625b31d6725fb96148da2a5fca58df2cb
 
 ### 章構成
 
-# [インデックス 52580] ファイルの概要
+# [インデックス %!d(string=https://github.com/golang/go/commit/857cda4625b31d6725fb96148da2a5fca58df2cb)] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[https://github.com/golang/go/commit/857cda4625b31d6725fb96148da2a5fca58df2cb](https://github.com/golang/go/commit/857cda4625b31d6725fb96148da2a5fca58df2cb)
+[%!s(int=52580)](https://github.com/golang/go/commit/857cda4625b31d6725fb96148da2a5fca58df2cb)
 
 ## 元コミット内容
 
@@ -44,5 +44,5 @@ echo "🚀 Generating explanation for commit 52580..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-
+%!(EXTRA string=https://github.com/golang/go/commit/857cda4625b31d6725fb96148da2a5fca58df2cb)
 EOF
