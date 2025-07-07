@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=edf60be15175ff2eb20fb66344d7487875546778): %!s(int=46054)
+# Index 46054: edf60be15175ff2eb20fb66344d7487875546778
+
+echo "🚀 Generating explanation for commit 46054..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 46054
-- **コミットハッシュ**: %!s(int=46054)
-- **GitHub URL**: edf60be15175ff2eb20fb66344d7487875546778
+- **コミットハッシュ**: edf60be15175ff2eb20fb66344d7487875546778
+- **GitHub URL**: https://github.com/golang/go/commit/edf60be15175ff2eb20fb66344d7487875546778
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/edf60be15175ff2eb20fb66344d7487875546778)] ファイルの概要
+# [インデックス 46054] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=46054)](https://github.com/golang/go/commit/edf60be15175ff2eb20fb66344d7487875546778)
+[https://github.com/golang/go/commit/edf60be15175ff2eb20fb66344d7487875546778](https://github.com/golang/go/commit/edf60be15175ff2eb20fb66344d7487875546778)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/edf60be15175ff2eb20fb66344d7487875546778)
+
 EOF

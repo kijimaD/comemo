@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=bedda245740d766bfad36b2d91a22781575fe463): %!s(int=59474)
+# Index 59474: bedda245740d766bfad36b2d91a22781575fe463
+
+echo "🚀 Generating explanation for commit 59474..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 59474
-- **コミットハッシュ**: %!s(int=59474)
-- **GitHub URL**: bedda245740d766bfad36b2d91a22781575fe463
+- **コミットハッシュ**: bedda245740d766bfad36b2d91a22781575fe463
+- **GitHub URL**: https://github.com/golang/go/commit/bedda245740d766bfad36b2d91a22781575fe463
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/bedda245740d766bfad36b2d91a22781575fe463)] ファイルの概要
+# [インデックス 59474] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=59474)](https://github.com/golang/go/commit/bedda245740d766bfad36b2d91a22781575fe463)
+[https://github.com/golang/go/commit/bedda245740d766bfad36b2d91a22781575fe463](https://github.com/golang/go/commit/bedda245740d766bfad36b2d91a22781575fe463)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/bedda245740d766bfad36b2d91a22781575fe463)
+
 EOF

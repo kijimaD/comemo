@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=babdb3832072b6ca55e2dfe071bac25d865f8911): %!s(int=25712)
+# Index 25712: babdb3832072b6ca55e2dfe071bac25d865f8911
+
+echo "🚀 Generating explanation for commit 25712..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 25712
-- **コミットハッシュ**: %!s(int=25712)
-- **GitHub URL**: babdb3832072b6ca55e2dfe071bac25d865f8911
+- **コミットハッシュ**: babdb3832072b6ca55e2dfe071bac25d865f8911
+- **GitHub URL**: https://github.com/golang/go/commit/babdb3832072b6ca55e2dfe071bac25d865f8911
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/babdb3832072b6ca55e2dfe071bac25d865f8911)] ファイルの概要
+# [インデックス 25712] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=25712)](https://github.com/golang/go/commit/babdb3832072b6ca55e2dfe071bac25d865f8911)
+[https://github.com/golang/go/commit/babdb3832072b6ca55e2dfe071bac25d865f8911](https://github.com/golang/go/commit/babdb3832072b6ca55e2dfe071bac25d865f8911)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/babdb3832072b6ca55e2dfe071bac25d865f8911)
+
 EOF

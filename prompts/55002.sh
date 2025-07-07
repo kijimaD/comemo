@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=dadd80ae204bda1c3a48245d8a938f55f71259ea): %!s(int=55002)
+# Index 55002: dadd80ae204bda1c3a48245d8a938f55f71259ea
+
+echo "🚀 Generating explanation for commit 55002..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 55002
-- **コミットハッシュ**: %!s(int=55002)
-- **GitHub URL**: dadd80ae204bda1c3a48245d8a938f55f71259ea
+- **コミットハッシュ**: dadd80ae204bda1c3a48245d8a938f55f71259ea
+- **GitHub URL**: https://github.com/golang/go/commit/dadd80ae204bda1c3a48245d8a938f55f71259ea
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/dadd80ae204bda1c3a48245d8a938f55f71259ea)] ファイルの概要
+# [インデックス 55002] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=55002)](https://github.com/golang/go/commit/dadd80ae204bda1c3a48245d8a938f55f71259ea)
+[https://github.com/golang/go/commit/dadd80ae204bda1c3a48245d8a938f55f71259ea](https://github.com/golang/go/commit/dadd80ae204bda1c3a48245d8a938f55f71259ea)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/dadd80ae204bda1c3a48245d8a938f55f71259ea)
+
 EOF

@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=bedfeed54a7a80123c07f83c325a0bcfe5c43398): %!s(int=48040)
+# Index 48040: bedfeed54a7a80123c07f83c325a0bcfe5c43398
+
+echo "🚀 Generating explanation for commit 48040..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 48040
-- **コミットハッシュ**: %!s(int=48040)
-- **GitHub URL**: bedfeed54a7a80123c07f83c325a0bcfe5c43398
+- **コミットハッシュ**: bedfeed54a7a80123c07f83c325a0bcfe5c43398
+- **GitHub URL**: https://github.com/golang/go/commit/bedfeed54a7a80123c07f83c325a0bcfe5c43398
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/bedfeed54a7a80123c07f83c325a0bcfe5c43398)] ファイルの概要
+# [インデックス 48040] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=48040)](https://github.com/golang/go/commit/bedfeed54a7a80123c07f83c325a0bcfe5c43398)
+[https://github.com/golang/go/commit/bedfeed54a7a80123c07f83c325a0bcfe5c43398](https://github.com/golang/go/commit/bedfeed54a7a80123c07f83c325a0bcfe5c43398)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/bedfeed54a7a80123c07f83c325a0bcfe5c43398)
+
 EOF

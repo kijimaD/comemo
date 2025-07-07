@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=caf15f855de1d2a167c14bbe6fc1bc7c51899c4e): %!s(int=4177)
+# Index 4177: caf15f855de1d2a167c14bbe6fc1bc7c51899c4e
+
+echo "🚀 Generating explanation for commit 4177..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 4177
-- **コミットハッシュ**: %!s(int=4177)
-- **GitHub URL**: caf15f855de1d2a167c14bbe6fc1bc7c51899c4e
+- **コミットハッシュ**: caf15f855de1d2a167c14bbe6fc1bc7c51899c4e
+- **GitHub URL**: https://github.com/golang/go/commit/caf15f855de1d2a167c14bbe6fc1bc7c51899c4e
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/caf15f855de1d2a167c14bbe6fc1bc7c51899c4e)] ファイルの概要
+# [インデックス 4177] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=4177)](https://github.com/golang/go/commit/caf15f855de1d2a167c14bbe6fc1bc7c51899c4e)
+[https://github.com/golang/go/commit/caf15f855de1d2a167c14bbe6fc1bc7c51899c4e](https://github.com/golang/go/commit/caf15f855de1d2a167c14bbe6fc1bc7c51899c4e)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/caf15f855de1d2a167c14bbe6fc1bc7c51899c4e)
+
 EOF

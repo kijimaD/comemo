@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=bead358611e36fe0991c171a8a4a4924f4f0e584): %!s(int=39951)
+# Index 39951: bead358611e36fe0991c171a8a4a4924f4f0e584
+
+echo "🚀 Generating explanation for commit 39951..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 39951
-- **コミットハッシュ**: %!s(int=39951)
-- **GitHub URL**: bead358611e36fe0991c171a8a4a4924f4f0e584
+- **コミットハッシュ**: bead358611e36fe0991c171a8a4a4924f4f0e584
+- **GitHub URL**: https://github.com/golang/go/commit/bead358611e36fe0991c171a8a4a4924f4f0e584
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/bead358611e36fe0991c171a8a4a4924f4f0e584)] ファイルの概要
+# [インデックス 39951] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=39951)](https://github.com/golang/go/commit/bead358611e36fe0991c171a8a4a4924f4f0e584)
+[https://github.com/golang/go/commit/bead358611e36fe0991c171a8a4a4924f4f0e584](https://github.com/golang/go/commit/bead358611e36fe0991c171a8a4a4924f4f0e584)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/bead358611e36fe0991c171a8a4a4924f4f0e584)
+
 EOF

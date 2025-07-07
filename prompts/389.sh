@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=dead164cc0d387ca151b14195e900d998dc30bde): %!s(int=389)
+# Index 389: dead164cc0d387ca151b14195e900d998dc30bde
+
+echo "🚀 Generating explanation for commit 389..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 389
-- **コミットハッシュ**: %!s(int=389)
-- **GitHub URL**: dead164cc0d387ca151b14195e900d998dc30bde
+- **コミットハッシュ**: dead164cc0d387ca151b14195e900d998dc30bde
+- **GitHub URL**: https://github.com/golang/go/commit/dead164cc0d387ca151b14195e900d998dc30bde
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/dead164cc0d387ca151b14195e900d998dc30bde)] ファイルの概要
+# [インデックス 389] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=389)](https://github.com/golang/go/commit/dead164cc0d387ca151b14195e900d998dc30bde)
+[https://github.com/golang/go/commit/dead164cc0d387ca151b14195e900d998dc30bde](https://github.com/golang/go/commit/dead164cc0d387ca151b14195e900d998dc30bde)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/dead164cc0d387ca151b14195e900d998dc30bde)
+
 EOF

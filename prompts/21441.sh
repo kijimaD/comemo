@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=ccdb50931f815fdf8de16f876478d7a1d0ee6696): %!s(int=21441)
+# Index 21441: ccdb50931f815fdf8de16f876478d7a1d0ee6696
+
+echo "🚀 Generating explanation for commit 21441..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 21441
-- **コミットハッシュ**: %!s(int=21441)
-- **GitHub URL**: ccdb50931f815fdf8de16f876478d7a1d0ee6696
+- **コミットハッシュ**: ccdb50931f815fdf8de16f876478d7a1d0ee6696
+- **GitHub URL**: https://github.com/golang/go/commit/ccdb50931f815fdf8de16f876478d7a1d0ee6696
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/ccdb50931f815fdf8de16f876478d7a1d0ee6696)] ファイルの概要
+# [インデックス 21441] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=21441)](https://github.com/golang/go/commit/ccdb50931f815fdf8de16f876478d7a1d0ee6696)
+[https://github.com/golang/go/commit/ccdb50931f815fdf8de16f876478d7a1d0ee6696](https://github.com/golang/go/commit/ccdb50931f815fdf8de16f876478d7a1d0ee6696)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/ccdb50931f815fdf8de16f876478d7a1d0ee6696)
+
 EOF

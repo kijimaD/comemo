@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=cecca43804e0bd795581b6ec6a376509ed5fea05): %!s(int=19855)
+# Index 19855: cecca43804e0bd795581b6ec6a376509ed5fea05
+
+echo "🚀 Generating explanation for commit 19855..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 19855
-- **コミットハッシュ**: %!s(int=19855)
-- **GitHub URL**: cecca43804e0bd795581b6ec6a376509ed5fea05
+- **コミットハッシュ**: cecca43804e0bd795581b6ec6a376509ed5fea05
+- **GitHub URL**: https://github.com/golang/go/commit/cecca43804e0bd795581b6ec6a376509ed5fea05
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/cecca43804e0bd795581b6ec6a376509ed5fea05)] ファイルの概要
+# [インデックス 19855] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=19855)](https://github.com/golang/go/commit/cecca43804e0bd795581b6ec6a376509ed5fea05)
+[https://github.com/golang/go/commit/cecca43804e0bd795581b6ec6a376509ed5fea05](https://github.com/golang/go/commit/cecca43804e0bd795581b6ec6a376509ed5fea05)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/cecca43804e0bd795581b6ec6a376509ed5fea05)
+
 EOF

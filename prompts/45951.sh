@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=dadfc80bc173ce4475bc76231de5259d797b0522): %!s(int=45951)
+# Index 45951: dadfc80bc173ce4475bc76231de5259d797b0522
+
+echo "🚀 Generating explanation for commit 45951..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 45951
-- **コミットハッシュ**: %!s(int=45951)
-- **GitHub URL**: dadfc80bc173ce4475bc76231de5259d797b0522
+- **コミットハッシュ**: dadfc80bc173ce4475bc76231de5259d797b0522
+- **GitHub URL**: https://github.com/golang/go/commit/dadfc80bc173ce4475bc76231de5259d797b0522
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/dadfc80bc173ce4475bc76231de5259d797b0522)] ファイルの概要
+# [インデックス 45951] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=45951)](https://github.com/golang/go/commit/dadfc80bc173ce4475bc76231de5259d797b0522)
+[https://github.com/golang/go/commit/dadfc80bc173ce4475bc76231de5259d797b0522](https://github.com/golang/go/commit/dadfc80bc173ce4475bc76231de5259d797b0522)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/dadfc80bc173ce4475bc76231de5259d797b0522)
+
 EOF

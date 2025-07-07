@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=dbdb3359b5b7cf948d74ba0f95e992ee98933bc5): %!s(int=55698)
+# Index 55698: dbdb3359b5b7cf948d74ba0f95e992ee98933bc5
+
+echo "🚀 Generating explanation for commit 55698..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 55698
-- **コミットハッシュ**: %!s(int=55698)
-- **GitHub URL**: dbdb3359b5b7cf948d74ba0f95e992ee98933bc5
+- **コミットハッシュ**: dbdb3359b5b7cf948d74ba0f95e992ee98933bc5
+- **GitHub URL**: https://github.com/golang/go/commit/dbdb3359b5b7cf948d74ba0f95e992ee98933bc5
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/dbdb3359b5b7cf948d74ba0f95e992ee98933bc5)] ファイルの概要
+# [インデックス 55698] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=55698)](https://github.com/golang/go/commit/dbdb3359b5b7cf948d74ba0f95e992ee98933bc5)
+[https://github.com/golang/go/commit/dbdb3359b5b7cf948d74ba0f95e992ee98933bc5](https://github.com/golang/go/commit/dbdb3359b5b7cf948d74ba0f95e992ee98933bc5)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/dbdb3359b5b7cf948d74ba0f95e992ee98933bc5)
+
 EOF

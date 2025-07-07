@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=bedde1bee0ce16b46549d182375f4feb3b137f46): %!s(int=61599)
+# Index 61599: bedde1bee0ce16b46549d182375f4feb3b137f46
+
+echo "🚀 Generating explanation for commit 61599..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 61599
-- **コミットハッシュ**: %!s(int=61599)
-- **GitHub URL**: bedde1bee0ce16b46549d182375f4feb3b137f46
+- **コミットハッシュ**: bedde1bee0ce16b46549d182375f4feb3b137f46
+- **GitHub URL**: https://github.com/golang/go/commit/bedde1bee0ce16b46549d182375f4feb3b137f46
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/bedde1bee0ce16b46549d182375f4feb3b137f46)] ファイルの概要
+# [インデックス 61599] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=61599)](https://github.com/golang/go/commit/bedde1bee0ce16b46549d182375f4feb3b137f46)
+[https://github.com/golang/go/commit/bedde1bee0ce16b46549d182375f4feb3b137f46](https://github.com/golang/go/commit/bedde1bee0ce16b46549d182375f4feb3b137f46)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/bedde1bee0ce16b46549d182375f4feb3b137f46)
+
 EOF

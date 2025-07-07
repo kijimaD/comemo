@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=edadffa2f3464c48a234f3cf2fc092a03f91824f): %!s(int=22058)
+# Index 22058: edadffa2f3464c48a234f3cf2fc092a03f91824f
+
+echo "🚀 Generating explanation for commit 22058..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 22058
-- **コミットハッシュ**: %!s(int=22058)
-- **GitHub URL**: edadffa2f3464c48a234f3cf2fc092a03f91824f
+- **コミットハッシュ**: edadffa2f3464c48a234f3cf2fc092a03f91824f
+- **GitHub URL**: https://github.com/golang/go/commit/edadffa2f3464c48a234f3cf2fc092a03f91824f
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/edadffa2f3464c48a234f3cf2fc092a03f91824f)] ファイルの概要
+# [インデックス 22058] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=22058)](https://github.com/golang/go/commit/edadffa2f3464c48a234f3cf2fc092a03f91824f)
+[https://github.com/golang/go/commit/edadffa2f3464c48a234f3cf2fc092a03f91824f](https://github.com/golang/go/commit/edadffa2f3464c48a234f3cf2fc092a03f91824f)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/edadffa2f3464c48a234f3cf2fc092a03f91824f)
+
 EOF

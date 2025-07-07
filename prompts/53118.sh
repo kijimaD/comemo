@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=feada5366134772c4c6462e4a12150410741a00f): %!s(int=53118)
+# Index 53118: feada5366134772c4c6462e4a12150410741a00f
+
+echo "🚀 Generating explanation for commit 53118..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 53118
-- **コミットハッシュ**: %!s(int=53118)
-- **GitHub URL**: feada5366134772c4c6462e4a12150410741a00f
+- **コミットハッシュ**: feada5366134772c4c6462e4a12150410741a00f
+- **GitHub URL**: https://github.com/golang/go/commit/feada5366134772c4c6462e4a12150410741a00f
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/feada5366134772c4c6462e4a12150410741a00f)] ファイルの概要
+# [インデックス 53118] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=53118)](https://github.com/golang/go/commit/feada5366134772c4c6462e4a12150410741a00f)
+[https://github.com/golang/go/commit/feada5366134772c4c6462e4a12150410741a00f](https://github.com/golang/go/commit/feada5366134772c4c6462e4a12150410741a00f)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/feada5366134772c4c6462e4a12150410741a00f)
+
 EOF

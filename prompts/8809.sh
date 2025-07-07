@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=ceae2c930159cce83407be3489d3fa896f237429): %!s(int=8809)
+# Index 8809: ceae2c930159cce83407be3489d3fa896f237429
+
+echo "🚀 Generating explanation for commit 8809..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 8809
-- **コミットハッシュ**: %!s(int=8809)
-- **GitHub URL**: ceae2c930159cce83407be3489d3fa896f237429
+- **コミットハッシュ**: ceae2c930159cce83407be3489d3fa896f237429
+- **GitHub URL**: https://github.com/golang/go/commit/ceae2c930159cce83407be3489d3fa896f237429
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/ceae2c930159cce83407be3489d3fa896f237429)] ファイルの概要
+# [インデックス 8809] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=8809)](https://github.com/golang/go/commit/ceae2c930159cce83407be3489d3fa896f237429)
+[https://github.com/golang/go/commit/ceae2c930159cce83407be3489d3fa896f237429](https://github.com/golang/go/commit/ceae2c930159cce83407be3489d3fa896f237429)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/ceae2c930159cce83407be3489d3fa896f237429)
+
 EOF

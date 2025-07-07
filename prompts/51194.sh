@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=becaeea1199b875bc24800fa88f2f4fea119bf78): %!s(int=51194)
+# Index 51194: becaeea1199b875bc24800fa88f2f4fea119bf78
+
+echo "🚀 Generating explanation for commit 51194..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 51194
-- **コミットハッシュ**: %!s(int=51194)
-- **GitHub URL**: becaeea1199b875bc24800fa88f2f4fea119bf78
+- **コミットハッシュ**: becaeea1199b875bc24800fa88f2f4fea119bf78
+- **GitHub URL**: https://github.com/golang/go/commit/becaeea1199b875bc24800fa88f2f4fea119bf78
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/becaeea1199b875bc24800fa88f2f4fea119bf78)] ファイルの概要
+# [インデックス 51194] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=51194)](https://github.com/golang/go/commit/becaeea1199b875bc24800fa88f2f4fea119bf78)
+[https://github.com/golang/go/commit/becaeea1199b875bc24800fa88f2f4fea119bf78](https://github.com/golang/go/commit/becaeea1199b875bc24800fa88f2f4fea119bf78)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/becaeea1199b875bc24800fa88f2f4fea119bf78)
+
 EOF

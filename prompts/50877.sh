@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=fda92615040c831bdcd812fd20ddb0da9dcef70b): %!s(int=50877)
+# Index 50877: fda92615040c831bdcd812fd20ddb0da9dcef70b
+
+echo "🚀 Generating explanation for commit 50877..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 50877
-- **コミットハッシュ**: %!s(int=50877)
-- **GitHub URL**: fda92615040c831bdcd812fd20ddb0da9dcef70b
+- **コミットハッシュ**: fda92615040c831bdcd812fd20ddb0da9dcef70b
+- **GitHub URL**: https://github.com/golang/go/commit/fda92615040c831bdcd812fd20ddb0da9dcef70b
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/fda92615040c831bdcd812fd20ddb0da9dcef70b)] ファイルの概要
+# [インデックス 50877] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=50877)](https://github.com/golang/go/commit/fda92615040c831bdcd812fd20ddb0da9dcef70b)
+[https://github.com/golang/go/commit/fda92615040c831bdcd812fd20ddb0da9dcef70b](https://github.com/golang/go/commit/fda92615040c831bdcd812fd20ddb0da9dcef70b)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/fda92615040c831bdcd812fd20ddb0da9dcef70b)
+
 EOF

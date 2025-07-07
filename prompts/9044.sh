@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=2e9388e32124bcc946d18388a2a18eb17a999148): %!s(int=9044)
+# Index 9044: 2e9388e32124bcc946d18388a2a18eb17a999148
+
+echo "🚀 Generating explanation for commit 9044..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 9044
-- **コミットハッシュ**: %!s(int=9044)
-- **GitHub URL**: 2e9388e32124bcc946d18388a2a18eb17a999148
+- **コミットハッシュ**: 2e9388e32124bcc946d18388a2a18eb17a999148
+- **GitHub URL**: https://github.com/golang/go/commit/2e9388e32124bcc946d18388a2a18eb17a999148
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/2e9388e32124bcc946d18388a2a18eb17a999148)] ファイルの概要
+# [インデックス 9044] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=9044)](https://github.com/golang/go/commit/2e9388e32124bcc946d18388a2a18eb17a999148)
+[https://github.com/golang/go/commit/2e9388e32124bcc946d18388a2a18eb17a999148](https://github.com/golang/go/commit/2e9388e32124bcc946d18388a2a18eb17a999148)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/2e9388e32124bcc946d18388a2a18eb17a999148)
+
 EOF

@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=256a605faa10bc5507597c4669cc5bc400bf487a): %!s(int=31061)
+# Index 31061: 256a605faa10bc5507597c4669cc5bc400bf487a
+
+echo "🚀 Generating explanation for commit 31061..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 31061
-- **コミットハッシュ**: %!s(int=31061)
-- **GitHub URL**: 256a605faa10bc5507597c4669cc5bc400bf487a
+- **コミットハッシュ**: 256a605faa10bc5507597c4669cc5bc400bf487a
+- **GitHub URL**: https://github.com/golang/go/commit/256a605faa10bc5507597c4669cc5bc400bf487a
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/256a605faa10bc5507597c4669cc5bc400bf487a)] ファイルの概要
+# [インデックス 31061] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=31061)](https://github.com/golang/go/commit/256a605faa10bc5507597c4669cc5bc400bf487a)
+[https://github.com/golang/go/commit/256a605faa10bc5507597c4669cc5bc400bf487a](https://github.com/golang/go/commit/256a605faa10bc5507597c4669cc5bc400bf487a)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/256a605faa10bc5507597c4669cc5bc400bf487a)
+
 EOF

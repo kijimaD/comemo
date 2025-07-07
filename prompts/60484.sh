@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=deed521ea3daf42cb9c8388ae48fe57f17e252f5): %!s(int=60484)
+# Index 60484: deed521ea3daf42cb9c8388ae48fe57f17e252f5
+
+echo "🚀 Generating explanation for commit 60484..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 60484
-- **コミットハッシュ**: %!s(int=60484)
-- **GitHub URL**: deed521ea3daf42cb9c8388ae48fe57f17e252f5
+- **コミットハッシュ**: deed521ea3daf42cb9c8388ae48fe57f17e252f5
+- **GitHub URL**: https://github.com/golang/go/commit/deed521ea3daf42cb9c8388ae48fe57f17e252f5
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/deed521ea3daf42cb9c8388ae48fe57f17e252f5)] ファイルの概要
+# [インデックス 60484] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=60484)](https://github.com/golang/go/commit/deed521ea3daf42cb9c8388ae48fe57f17e252f5)
+[https://github.com/golang/go/commit/deed521ea3daf42cb9c8388ae48fe57f17e252f5](https://github.com/golang/go/commit/deed521ea3daf42cb9c8388ae48fe57f17e252f5)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/deed521ea3daf42cb9c8388ae48fe57f17e252f5)
+
 EOF

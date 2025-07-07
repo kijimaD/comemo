@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=deb00ac3f43076e07d2774c2ea689f7d2ccb983b): %!s(int=6081)
+# Index 6081: deb00ac3f43076e07d2774c2ea689f7d2ccb983b
+
+echo "🚀 Generating explanation for commit 6081..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 6081
-- **コミットハッシュ**: %!s(int=6081)
-- **GitHub URL**: deb00ac3f43076e07d2774c2ea689f7d2ccb983b
+- **コミットハッシュ**: deb00ac3f43076e07d2774c2ea689f7d2ccb983b
+- **GitHub URL**: https://github.com/golang/go/commit/deb00ac3f43076e07d2774c2ea689f7d2ccb983b
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/deb00ac3f43076e07d2774c2ea689f7d2ccb983b)] ファイルの概要
+# [インデックス 6081] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=6081)](https://github.com/golang/go/commit/deb00ac3f43076e07d2774c2ea689f7d2ccb983b)
+[https://github.com/golang/go/commit/deb00ac3f43076e07d2774c2ea689f7d2ccb983b](https://github.com/golang/go/commit/deb00ac3f43076e07d2774c2ea689f7d2ccb983b)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/deb00ac3f43076e07d2774c2ea689f7d2ccb983b)
+
 EOF

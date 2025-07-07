@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc): %!s(int=31133)
+# Index 31133: edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc
+
+echo "🚀 Generating explanation for commit 31133..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 31133
-- **コミットハッシュ**: %!s(int=31133)
-- **GitHub URL**: edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc
+- **コミットハッシュ**: edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc
+- **GitHub URL**: https://github.com/golang/go/commit/edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc)] ファイルの概要
+# [インデックス 31133] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=31133)](https://github.com/golang/go/commit/edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc)
+[https://github.com/golang/go/commit/edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc](https://github.com/golang/go/commit/edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc)
+
 EOF

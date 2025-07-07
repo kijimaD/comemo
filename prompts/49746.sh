@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=f5f8a911d8425995c61ed836584b4f3ad0e4c8fc): %!s(int=49746)
+# Index 49746: f5f8a911d8425995c61ed836584b4f3ad0e4c8fc
+
+echo "🚀 Generating explanation for commit 49746..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 49746
-- **コミットハッシュ**: %!s(int=49746)
-- **GitHub URL**: f5f8a911d8425995c61ed836584b4f3ad0e4c8fc
+- **コミットハッシュ**: f5f8a911d8425995c61ed836584b4f3ad0e4c8fc
+- **GitHub URL**: https://github.com/golang/go/commit/f5f8a911d8425995c61ed836584b4f3ad0e4c8fc
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/f5f8a911d8425995c61ed836584b4f3ad0e4c8fc)] ファイルの概要
+# [インデックス 49746] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=49746)](https://github.com/golang/go/commit/f5f8a911d8425995c61ed836584b4f3ad0e4c8fc)
+[https://github.com/golang/go/commit/f5f8a911d8425995c61ed836584b4f3ad0e4c8fc](https://github.com/golang/go/commit/f5f8a911d8425995c61ed836584b4f3ad0e4c8fc)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/f5f8a911d8425995c61ed836584b4f3ad0e4c8fc)
+
 EOF

@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=cea365ddfb21ba0538072068a39c358733956ffa): %!s(int=61550)
+# Index 61550: cea365ddfb21ba0538072068a39c358733956ffa
+
+echo "🚀 Generating explanation for commit 61550..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 61550
-- **コミットハッシュ**: %!s(int=61550)
-- **GitHub URL**: cea365ddfb21ba0538072068a39c358733956ffa
+- **コミットハッシュ**: cea365ddfb21ba0538072068a39c358733956ffa
+- **GitHub URL**: https://github.com/golang/go/commit/cea365ddfb21ba0538072068a39c358733956ffa
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/cea365ddfb21ba0538072068a39c358733956ffa)] ファイルの概要
+# [インデックス 61550] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=61550)](https://github.com/golang/go/commit/cea365ddfb21ba0538072068a39c358733956ffa)
+[https://github.com/golang/go/commit/cea365ddfb21ba0538072068a39c358733956ffa](https://github.com/golang/go/commit/cea365ddfb21ba0538072068a39c358733956ffa)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/cea365ddfb21ba0538072068a39c358733956ffa)
+
 EOF

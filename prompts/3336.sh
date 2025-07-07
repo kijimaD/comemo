@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=681f86a87f760ae72057fb0ee3345a6eac5a7fce): %!s(int=3336)
+# Index 3336: 681f86a87f760ae72057fb0ee3345a6eac5a7fce
+
+echo "🚀 Generating explanation for commit 3336..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 3336
-- **コミットハッシュ**: %!s(int=3336)
-- **GitHub URL**: 681f86a87f760ae72057fb0ee3345a6eac5a7fce
+- **コミットハッシュ**: 681f86a87f760ae72057fb0ee3345a6eac5a7fce
+- **GitHub URL**: https://github.com/golang/go/commit/681f86a87f760ae72057fb0ee3345a6eac5a7fce
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/681f86a87f760ae72057fb0ee3345a6eac5a7fce)] ファイルの概要
+# [インデックス 3336] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=3336)](https://github.com/golang/go/commit/681f86a87f760ae72057fb0ee3345a6eac5a7fce)
+[https://github.com/golang/go/commit/681f86a87f760ae72057fb0ee3345a6eac5a7fce](https://github.com/golang/go/commit/681f86a87f760ae72057fb0ee3345a6eac5a7fce)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/681f86a87f760ae72057fb0ee3345a6eac5a7fce)
+
 EOF

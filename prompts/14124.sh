@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=dad1228cc378f5860a111201ed24ba88cf992a73): %!s(int=14124)
+# Index 14124: dad1228cc378f5860a111201ed24ba88cf992a73
+
+echo "🚀 Generating explanation for commit 14124..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 14124
-- **コミットハッシュ**: %!s(int=14124)
-- **GitHub URL**: dad1228cc378f5860a111201ed24ba88cf992a73
+- **コミットハッシュ**: dad1228cc378f5860a111201ed24ba88cf992a73
+- **GitHub URL**: https://github.com/golang/go/commit/dad1228cc378f5860a111201ed24ba88cf992a73
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/dad1228cc378f5860a111201ed24ba88cf992a73)] ファイルの概要
+# [インデックス 14124] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=14124)](https://github.com/golang/go/commit/dad1228cc378f5860a111201ed24ba88cf992a73)
+[https://github.com/golang/go/commit/dad1228cc378f5860a111201ed24ba88cf992a73](https://github.com/golang/go/commit/dad1228cc378f5860a111201ed24ba88cf992a73)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/dad1228cc378f5860a111201ed24ba88cf992a73)
+
 EOF

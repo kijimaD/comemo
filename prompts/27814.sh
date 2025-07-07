@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=babfb4ec3ba3e4e36b1003d6efbaeddf2e975240): %!s(int=27814)
+# Index 27814: babfb4ec3ba3e4e36b1003d6efbaeddf2e975240
+
+echo "🚀 Generating explanation for commit 27814..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 27814
-- **コミットハッシュ**: %!s(int=27814)
-- **GitHub URL**: babfb4ec3ba3e4e36b1003d6efbaeddf2e975240
+- **コミットハッシュ**: babfb4ec3ba3e4e36b1003d6efbaeddf2e975240
+- **GitHub URL**: https://github.com/golang/go/commit/babfb4ec3ba3e4e36b1003d6efbaeddf2e975240
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/babfb4ec3ba3e4e36b1003d6efbaeddf2e975240)] ファイルの概要
+# [インデックス 27814] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=27814)](https://github.com/golang/go/commit/babfb4ec3ba3e4e36b1003d6efbaeddf2e975240)
+[https://github.com/golang/go/commit/babfb4ec3ba3e4e36b1003d6efbaeddf2e975240](https://github.com/golang/go/commit/babfb4ec3ba3e4e36b1003d6efbaeddf2e975240)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/babfb4ec3ba3e4e36b1003d6efbaeddf2e975240)
+
 EOF

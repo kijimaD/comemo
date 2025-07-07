@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=42a76efc924cdae869efa1c936d263134ff225d6): %!s(int=13301)
+# Index 13301: 42a76efc924cdae869efa1c936d263134ff225d6
+
+echo "🚀 Generating explanation for commit 13301..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 13301
-- **コミットハッシュ**: %!s(int=13301)
-- **GitHub URL**: 42a76efc924cdae869efa1c936d263134ff225d6
+- **コミットハッシュ**: 42a76efc924cdae869efa1c936d263134ff225d6
+- **GitHub URL**: https://github.com/golang/go/commit/42a76efc924cdae869efa1c936d263134ff225d6
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/42a76efc924cdae869efa1c936d263134ff225d6)] ファイルの概要
+# [インデックス 13301] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=13301)](https://github.com/golang/go/commit/42a76efc924cdae869efa1c936d263134ff225d6)
+[https://github.com/golang/go/commit/42a76efc924cdae869efa1c936d263134ff225d6](https://github.com/golang/go/commit/42a76efc924cdae869efa1c936d263134ff225d6)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/42a76efc924cdae869efa1c936d263134ff225d6)
+
 EOF

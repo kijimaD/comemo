@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=daddeb26865e55432be7d82641e835911828feca): %!s(int=22184)
+# Index 22184: daddeb26865e55432be7d82641e835911828feca
+
+echo "🚀 Generating explanation for commit 22184..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 22184
-- **コミットハッシュ**: %!s(int=22184)
-- **GitHub URL**: daddeb26865e55432be7d82641e835911828feca
+- **コミットハッシュ**: daddeb26865e55432be7d82641e835911828feca
+- **GitHub URL**: https://github.com/golang/go/commit/daddeb26865e55432be7d82641e835911828feca
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/daddeb26865e55432be7d82641e835911828feca)] ファイルの概要
+# [インデックス 22184] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=22184)](https://github.com/golang/go/commit/daddeb26865e55432be7d82641e835911828feca)
+[https://github.com/golang/go/commit/daddeb26865e55432be7d82641e835911828feca](https://github.com/golang/go/commit/daddeb26865e55432be7d82641e835911828feca)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/daddeb26865e55432be7d82641e835911828feca)
+
 EOF

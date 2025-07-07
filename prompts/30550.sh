@@ -1,5 +1,7 @@
 #!/bin/bash
-# Index %!d(string=fabb4115ed311ec4af19f87c2334e38497dbb8d0): %!s(int=30550)
+# Index 30550: fabb4115ed311ec4af19f87c2334e38497dbb8d0
+
+echo "🚀 Generating explanation for commit 30550..."
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
@@ -14,18 +16,18 @@
 
 ### メタデータ
 - **コミットインデックス**: 30550
-- **コミットハッシュ**: %!s(int=30550)
-- **GitHub URL**: fabb4115ed311ec4af19f87c2334e38497dbb8d0
+- **コミットハッシュ**: fabb4115ed311ec4af19f87c2334e38497dbb8d0
+- **GitHub URL**: https://github.com/golang/go/commit/fabb4115ed311ec4af19f87c2334e38497dbb8d0
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/fabb4115ed311ec4af19f87c2334e38497dbb8d0)] ファイルの概要
+# [インデックス 30550] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(int=30550)](https://github.com/golang/go/commit/fabb4115ed311ec4af19f87c2334e38497dbb8d0)
+[https://github.com/golang/go/commit/fabb4115ed311ec4af19f87c2334e38497dbb8d0](https://github.com/golang/go/commit/fabb4115ed311ec4af19f87c2334e38497dbb8d0)
 
 ## 元コミット内容
 
@@ -42,5 +44,5 @@
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/fabb4115ed311ec4af19f87c2334e38497dbb8d0)
+
 EOF
