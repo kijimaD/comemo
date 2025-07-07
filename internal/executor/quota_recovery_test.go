@@ -132,6 +132,9 @@ func TestQuotaErrorOneHourRecovery(t *testing.T) {
 		cliManager.CLIs["claude"].LastQuotaError = time.Now()
 		cliManager.CLIs["claude"].RecoveryDelay = time.Hour
 
+		// Ensure scheduler has "claude" in active CLIs
+		scheduler.activeCLIs = []string{"claude"}
+
 		// Should not select CLI with active recovery period
 		bestCLI := scheduler.selectBestCLIWithCapacity()
 		if bestCLI != "" {

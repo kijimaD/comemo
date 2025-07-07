@@ -420,6 +420,11 @@ func (s *Scheduler) assignScriptForRetry(scriptName string) {
 	// Add to queue
 	s.queued[bestCLI] = append(s.queued[bestCLI], scriptName)
 	s.logger.Debug("    → %s をリトライ用に %s にキューイング", scriptName, bestCLI)
+	
+	// Log queued event for retry script
+	if eventLogger := s.getTaskEventLogger(); eventLogger != nil {
+		eventLogger.LogQueued(scriptName, bestCLI)
+	}
 }
 
 // handleResults processes results from workers
@@ -541,6 +546,14 @@ func (s *Scheduler) handleWorkerResult(result WorkerResult) {
 	s.scriptStateMgr.SetScriptRetrying(result.Script, retryReason, errorMsg)
 	s.logger.Debug("  → スクリプト %s をリトライ待ち状態に設定 (理由: %s, 待機時間: %v)",
 		result.Script, retryReason.String(), retryReason.GetRetryDelay(s.config))
+
+	// Log retrying event with detailed error message
+	if eventLogger := s.getTaskEventLogger(); eventLogger != nil {
+		retryCount := scriptState.RetryCount + 1 // +1 because SetScriptRetrying increments it
+		// Include both retry reason type and actual error message
+		detailedReason := fmt.Sprintf("%s: %s", retryReason.String(), errorMsg)
+		eventLogger.LogRetryingWithCLI(result.Script, result.CLI, retryCount, detailedReason)
+	}
 
 	// Update old state management for compatibility - but don't increase failed count for retrying scripts
 	s.statusManager.AddRetryScript(result.Script)

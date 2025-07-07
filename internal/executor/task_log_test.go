@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -271,19 +272,34 @@ func TestLogWithLongOutput(t *testing.T) {
 
 func TestConcurrentLogging(t *testing.T) {
 	// 並行アクセスでも安全に動作することを確認
-	buf := &bytes.Buffer{}
+	// bufferの並行書き込みによる競合状態を避けるため、同期化されたbufferを使用
+	type SyncBuffer struct {
+		buf bytes.Buffer
+		mu  sync.Mutex
+	}
+	
+	syncBuf := &SyncBuffer{}
+	
+	// Writerインターフェースを実装
+	writeFunc := func(p []byte) (n int, err error) {
+		syncBuf.mu.Lock()
+		defer syncBuf.mu.Unlock()
+		return syncBuf.buf.Write(p)
+	}
+	
+	writer := &writerFunc{writeFunc}
 	done := make(chan bool)
 
 	// 複数のゴルーチンから同時にログを書き込む
 	for i := 0; i < 10; i++ {
 		go func(id int) {
 			script := strings.ReplaceAll("test{{id}}.sh", "{{id}}", fmt.Sprintf("%d", id))
-			LogTaskStart(buf, script, "claude")
+			LogTaskStart(writer, script, "claude")
 			time.Sleep(10 * time.Millisecond)
 			if id%2 == 0 {
-				LogTaskSuccess(buf, script, "claude", "output.md")
+				LogTaskSuccess(writer, script, "claude", "output.md")
 			} else {
-				LogTaskFailure(buf, script, "claude", "error", 1)
+				LogTaskFailure(writer, script, "claude", "error", 1)
 			}
 			done <- true
 		}(i)
@@ -294,12 +310,15 @@ func TestConcurrentLogging(t *testing.T) {
 		<-done
 	}
 
-	output := buf.String()
+	syncBuf.mu.Lock()
+	output := syncBuf.buf.String()
+	syncBuf.mu.Unlock()
+	
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 
 	// 20行（各ゴルーチンで2行）のログが記録されているはず
 	if len(lines) != 20 {
-		t.Errorf("Expected 20 log lines, got %d", len(lines))
+		t.Errorf("Expected 20 log lines, got %d. Output:\n%s", len(lines), output)
 	}
 
 	// 各行が正しい形式であることを確認
@@ -308,4 +327,13 @@ func TestConcurrentLogging(t *testing.T) {
 			t.Errorf("Line %d has incorrect format: %s", i+1, line)
 		}
 	}
+}
+
+// Helper type to implement io.Writer
+type writerFunc struct {
+	writeFunc func([]byte) (int, error)
+}
+
+func (w *writerFunc) Write(p []byte) (n int, err error) {
+	return w.writeFunc(p)
 }

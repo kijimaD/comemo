@@ -40,6 +40,7 @@ type TaskEvent struct {
 	Error       string        `json:"error,omitempty"`
 	Duration    time.Duration `json:"duration,omitempty"`
 	RetryCount  int           `json:"retry_count,omitempty"`
+	RetryReason string        `json:"retry_reason,omitempty"`
 	OutputPath  string        `json:"output_path,omitempty"`
 	Output      string        `json:"output,omitempty"`
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
@@ -99,6 +100,19 @@ func (l *TaskEventLogger) LogStarted(taskID, cli string) {
 	l.LogEvent(event)
 }
 
+// LogStartedWithRetry logs a task started event with retry information
+func (l *TaskEventLogger) LogStartedWithRetry(taskID, cli string, retryCount int, retryReason string) {
+	event := &TaskEvent{
+		Timestamp:   time.Now(),
+		EventType:   TaskEventStarted,
+		TaskID:      taskID,
+		CLI:         cli,
+		RetryCount:  retryCount,
+		RetryReason: retryReason,
+	}
+	l.LogEvent(event)
+}
+
 // LogCompleted logs a task completed event
 func (l *TaskEventLogger) LogCompleted(taskID, cli string, duration time.Duration, outputPath string) {
 	l.LogCompletedWithOutput(taskID, cli, duration, outputPath, "")
@@ -149,6 +163,19 @@ func (l *TaskEventLogger) LogRetrying(taskID string, retryCount int, reason stri
 	l.LogEvent(event)
 }
 
+// LogRetryingWithCLI logs a task retrying event with CLI information
+func (l *TaskEventLogger) LogRetryingWithCLI(taskID, cli string, retryCount int, reason string) {
+	event := &TaskEvent{
+		Timestamp:   time.Now(),
+		EventType:   TaskEventRetrying,
+		TaskID:      taskID,
+		CLI:         cli,
+		RetryCount:  retryCount,
+		RetryReason: reason,
+	}
+	l.LogEvent(event)
+}
+
 // LogTimeout logs a task timeout event
 func (l *TaskEventLogger) LogTimeout(taskID, cli string, duration time.Duration) {
 	l.LogTimeoutWithOutput(taskID, cli, duration, "")
@@ -195,6 +222,21 @@ func (l *TaskEventLogger) LogQualityFailedWithOutput(taskID, cli string, retryCo
 	}
 	l.LogEvent(event)
 }
+
+// LogQualityFailedWithDetails logs a quality check failed event with detailed failure reason and output
+func (l *TaskEventLogger) LogQualityFailedWithDetails(taskID, cli string, retryCount int, failureDetail, output string) {
+	event := &TaskEvent{
+		Timestamp:  time.Now(),
+		EventType:  TaskEventQualityFailed,
+		TaskID:     taskID,
+		CLI:        cli,
+		Error:      failureDetail,
+		RetryCount: retryCount,
+		Output:     sanitizeOutputForEvent(output),
+	}
+	l.LogEvent(event)
+}
+
 
 // sanitizeOutputForEvent sanitizes output for event logging (truncate to 1000 chars for JSON)
 func sanitizeOutputForEvent(output string) string {

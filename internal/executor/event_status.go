@@ -127,6 +127,17 @@ type EventStatusManager struct {
 	maxRetries int
 }
 
+// GetRetryInfo returns retry information for a script
+func (m *EventStatusManager) GetRetryInfo(scriptName string) (retryCount int, retryReason string) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	
+	if entry, exists := m.entries[scriptName]; exists {
+		return entry.RetryCount, entry.RetryDelayType.String()
+	}
+	return 0, ""
+}
+
 // NewEventStatusManager creates a new event status manager
 func NewEventStatusManager(maxRetries int) *EventStatusManager {
 	return &EventStatusManager{

@@ -70,9 +70,18 @@ func executeSimpleTaskWithContext(ctx context.Context, workerName string, task T
 		manager.Options.EventStatusManager.StartExecution(task.Script, task.CLI)
 	}
 
-	// タスクイベントログ: 実行開始
+	// タスクイベントログ: 実行開始（リトライ情報含む）
 	if manager.Options.TaskEventLogger != nil {
-		manager.Options.TaskEventLogger.LogStarted(task.Script, task.CLI)
+		if manager.Options.EventStatusManager != nil {
+			retryCount, retryReason := manager.Options.EventStatusManager.GetRetryInfo(task.Script)
+			if retryCount > 0 {
+				manager.Options.TaskEventLogger.LogStartedWithRetry(task.Script, task.CLI, retryCount, retryReason)
+			} else {
+				manager.Options.TaskEventLogger.LogStarted(task.Script, task.CLI)
+			}
+		} else {
+			manager.Options.TaskEventLogger.LogStarted(task.Script, task.CLI)
+		}
 	}
 
 	// Get CLI command
@@ -139,7 +148,7 @@ func executeSimpleTaskWithContext(ctx context.Context, workerName string, task T
 		execError := CreateExecutionError(err, outputStr, scriptPath, task.CLI)
 
 		duration := time.Since(startTime)
-		
+
 		// タスク失敗をログに記録（実行結果含む）
 		if manager.Options.TaskLogWriter != nil {
 			retryCount := manager.GetRetryCount(task.Script)
@@ -184,37 +193,27 @@ func executeSimpleTaskWithContext(ctx context.Context, workerName string, task T
 		}
 	}
 
-	// Check output validity
-	aiOutputStart := strings.LastIndex(outputStr, "🚀 Generating explanation for commit")
-	if aiOutputStart == -1 {
-		aiOutputStart = 0
-	} else {
-		nextNewline := strings.Index(outputStr[aiOutputStart:], "\n")
-		if nextNewline != -1 {
-			aiOutputStart += nextNewline + 1
+	// Check if AI CLI already saved the file
+	fileContent, err := os.ReadFile(outputPath)
+	if err != nil {
+		return WorkerResult{
+			Script:      task.Script,
+			CLI:         task.CLI,
+			Success:     false,
+			IsRetryable: true,
+			Error:       fmt.Errorf("error reading AI-generated file: %w", err),
+			Output:      outputStr,
+			Duration:    time.Since(startTime),
 		}
 	}
-	aiOutputContent := strings.TrimSpace(outputStr[aiOutputStart:])
 
-	foundValidContent := strings.Contains(aiOutputContent, "## コアとなるコードの解説") ||
-		strings.Contains(aiOutputContent, "## 技術的詳細") ||
-		strings.Contains(aiOutputContent, "# [インデックス")
+	fileContentStr := string(fileContent)
+	foundValidContent := strings.Contains(fileContentStr, "## コアとなるコードの解説") ||
+		strings.Contains(fileContentStr, "## 技術的詳細") ||
+		strings.Contains(fileContentStr, "# [インデックス")
 
-	if len(aiOutputContent) > 1000 && foundValidContent {
-		// Write output file
-		if err := os.WriteFile(outputPath, []byte(aiOutputContent), 0644); err != nil {
-			return WorkerResult{
-				Script:      task.Script,
-				CLI:         task.CLI,
-				Success:     false,
-				IsRetryable: true,
-				Error:       fmt.Errorf("error writing output: %w", err),
-				Output:      outputStr,
-				Duration:    time.Since(startTime),
-			}
-		}
-
-		// Delete the script file on success
+	if len(fileContentStr) > 500 && foundValidContent {
+		// Quality check passed - delete the script file on success
 		if err := os.Remove(scriptPath); err != nil {
 			logger.Warn("[%s] Failed to delete script: %v", workerName, err)
 		}
@@ -222,7 +221,7 @@ func executeSimpleTaskWithContext(ctx context.Context, workerName string, task T
 		logger.Debug("[%s] タスク完了: %s (所要時間: %v)", workerName, task.Script, time.Since(startTime))
 
 		duration := time.Since(startTime)
-		
+
 		// タスク成功をログに記録（実行結果含む）
 		if manager.Options.TaskLogWriter != nil {
 			LogTaskSuccessWithDetails(manager.Options.TaskLogWriter, task.Script, task.CLI, outputPath, outputStr, duration)
@@ -247,32 +246,57 @@ func executeSimpleTaskWithContext(ctx context.Context, workerName string, task T
 		}
 	}
 
-	// Output was invalid
-	logger.Warn("[%s] 出力が不完全: %s (長さ: %d, 有効コンテンツ: %v)",
-		workerName, task.Script, len(aiOutputContent), foundValidContent)
+	// Quality check failed - analyze reasons based on written file content
+	var failureReasons []string
 
-	// Remove any partially written output file
-	if _, err := os.Stat(outputPath); err == nil {
-		os.Remove(outputPath)
+	if len(fileContentStr) <= 500 {
+		failureReasons = append(failureReasons, fmt.Sprintf("insufficient content length (%d chars, required: >500)", len(fileContentStr)))
+	}
+
+	if !foundValidContent {
+		missingElements := []string{}
+		if !strings.Contains(fileContentStr, "## コアとなるコードの解説") {
+			missingElements = append(missingElements, "コアとなるコードの解説")
+		}
+		if !strings.Contains(fileContentStr, "## 技術的詳細") {
+			missingElements = append(missingElements, "技術的詳細")
+		}
+		if !strings.Contains(fileContentStr, "# [インデックス") {
+			missingElements = append(missingElements, "インデックス")
+		}
+		failureReasons = append(failureReasons, fmt.Sprintf("missing required sections: %s", strings.Join(missingElements, ", ")))
+	}
+
+	qualityFailureDetail := strings.Join(failureReasons, "; ")
+
+	// Output was invalid
+	logger.Warn("[%s] 品質チェック失敗: %s - %s",
+		workerName, task.Script, qualityFailureDetail)
+
+	// Remove the failed output file
+	if err := os.Remove(outputPath); err != nil {
+		logger.Warn("[%s] Failed to remove invalid output file: %v", workerName, err)
 	}
 
 	duration := time.Since(startTime)
-	
-	// タスク失敗をログに記録（品質チェック失敗、実行結果含む）
+
+	// タスク失敗をログに記録（品質チェック失敗、詳細理由含む）
 	if manager.Options.TaskLogWriter != nil {
 		retryCount := manager.GetRetryCount(task.Script)
-		LogTaskFailureWithDetails(manager.Options.TaskLogWriter, task.Script, task.CLI, "quality check failed", retryCount, outputStr, duration)
+		detailedError := fmt.Sprintf("quality check failed: %s", qualityFailureDetail)
+		LogTaskFailureWithDetails(manager.Options.TaskLogWriter, task.Script, task.CLI, detailedError, retryCount, outputStr, duration)
 	}
 
 	// イベントステータス管理: リトライ待ち設定（品質チェック失敗）
 	if manager.Options.EventStatusManager != nil {
-		manager.Options.EventStatusManager.SetRetryWaiting(task.Script, RetryDelayQuality, "quality check failed")
+		detailedReason := fmt.Sprintf("quality check failed: %s", qualityFailureDetail)
+		manager.Options.EventStatusManager.SetRetryWaiting(task.Script, RetryDelayQuality, detailedReason)
 	}
 
-	// タスクイベントログ: 品質チェック失敗
+	// タスクイベントログ: 品質チェック失敗（詳細理由含む）
 	if manager.Options.TaskEventLogger != nil {
 		retryCount := manager.GetRetryCount(task.Script)
-		manager.Options.TaskEventLogger.LogQualityFailedWithOutput(task.Script, task.CLI, retryCount, outputStr)
+		manager.Options.TaskEventLogger.LogQualityFailedWithDetails(task.Script, task.CLI, retryCount, qualityFailureDetail, outputStr)
 	}
 
 	return WorkerResult{
@@ -280,7 +304,7 @@ func executeSimpleTaskWithContext(ctx context.Context, workerName string, task T
 		CLI:         task.CLI,
 		Success:     false,
 		IsRetryable: true,
-		Error:       fmt.Errorf("output validation failed"),
+		Error:       fmt.Errorf("quality check failed: %s", qualityFailureDetail),
 		Output:      outputStr,
 		Duration:    duration,
 	}

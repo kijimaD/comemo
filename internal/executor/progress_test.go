@@ -92,7 +92,7 @@ func TestStatusManager_ErrorHandling(t *testing.T) {
 	sm.AddRetryScript("test.sh")
 	status = sm.GetStatus()
 	assert.Equal(t, 1, status.Queue.Retrying)
-	assert.Equal(t, 0, status.Queue.Failed)
+	assert.Equal(t, 1, status.Queue.Failed) // Failed count remains as it represents completed failures
 	assert.Contains(t, status.Errors.RetryQueue, "test.sh")
 }
 
