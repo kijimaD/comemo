@@ -1,12 +1,12 @@
 #!/bin/bash
 # Index 61320: b03b1acfb0bb6c605a70987dfaf5bb922c792e82
 
-echo "🚀 Generating explanation for commit 61320..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'
-これからコミット解説を生成します。以下の指示に厳密に従ってください。
+%!s(int=61320)
+EOF
+%!(EXTRA string=これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
 1.  まず、 ./commit_data/61320.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
@@ -44,5 +44,4 @@ echo "🚀 Generating explanation for commit 61320..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/b03b1acfb0bb6c605a70987dfaf5bb922c792e82)
-EOF
+%!(EXTRA string=https://github.com/golang/go/commit/b03b1acfb0bb6c605a70987dfaf5bb922c792e82))

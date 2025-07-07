@@ -1,12 +1,12 @@
 #!/bin/bash
 # Index 18692: b3e0a8df24e5c98f516e542681bb9a752999dc29
 
-echo "🚀 Generating explanation for commit 18692..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'
-これからコミット解説を生成します。以下の指示に厳密に従ってください。
+%!s(int=18692)
+EOF
+%!(EXTRA string=これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
 1.  まず、 ./commit_data/18692.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
@@ -44,5 +44,4 @@ echo "🚀 Generating explanation for commit 18692..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/b3e0a8df24e5c98f516e542681bb9a752999dc29)
-EOF
+%!(EXTRA string=https://github.com/golang/go/commit/b3e0a8df24e5c98f516e542681bb9a752999dc29))

@@ -1,12 +1,12 @@
 #!/bin/bash
 # Index 9851: e419535f2ae5c8aef1f64cdb207049c8712ffb48
 
-echo "🚀 Generating explanation for commit 9851..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'
-これからコミット解説を生成します。以下の指示に厳密に従ってください。
+%!s(int=9851)
+EOF
+%!(EXTRA string=これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
 1.  まず、 ./commit_data/9851.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
@@ -44,5 +44,4 @@ echo "🚀 Generating explanation for commit 9851..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/e419535f2ae5c8aef1f64cdb207049c8712ffb48)
-EOF
+%!(EXTRA string=https://github.com/golang/go/commit/e419535f2ae5c8aef1f64cdb207049c8712ffb48))

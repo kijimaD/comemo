@@ -1,12 +1,12 @@
 #!/bin/bash
 # Index 36410: f524268c4069d5b47a4c63bb18268719810988ab
 
-echo "🚀 Generating explanation for commit 36410..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'
-これからコミット解説を生成します。以下の指示に厳密に従ってください。
+%!s(int=36410)
+EOF
+%!(EXTRA string=これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
 1.  まず、 ./commit_data/36410.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
@@ -44,5 +44,4 @@ echo "🚀 Generating explanation for commit 36410..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/f524268c4069d5b47a4c63bb18268719810988ab)
-EOF
+%!(EXTRA string=https://github.com/golang/go/commit/f524268c4069d5b47a4c63bb18268719810988ab))

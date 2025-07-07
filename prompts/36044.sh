@@ -1,12 +1,12 @@
 #!/bin/bash
 # Index 36044: 80e69220c8274223b98247b879df3c57b0dbc476
 
-echo "🚀 Generating explanation for commit 36044..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'
-これからコミット解説を生成します。以下の指示に厳密に従ってください。
+%!s(int=36044)
+EOF
+%!(EXTRA string=これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
 1.  まず、 ./commit_data/36044.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
@@ -44,5 +44,4 @@ echo "🚀 Generating explanation for commit 36044..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/80e69220c8274223b98247b879df3c57b0dbc476)
-EOF
+%!(EXTRA string=https://github.com/golang/go/commit/80e69220c8274223b98247b879df3c57b0dbc476))

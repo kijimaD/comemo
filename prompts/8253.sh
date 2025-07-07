@@ -1,12 +1,12 @@
 #!/bin/bash
 # Index 8253: 370276a3e58c4794e1d604961274859fc6fc2501
 
-echo "🚀 Generating explanation for commit 8253..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'
-これからコミット解説を生成します。以下の指示に厳密に従ってください。
+%!s(int=8253)
+EOF
+%!(EXTRA string=これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
 1.  まず、 ./commit_data/8253.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
@@ -44,5 +44,4 @@ echo "🚀 Generating explanation for commit 8253..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/370276a3e58c4794e1d604961274859fc6fc2501)
-EOF
+%!(EXTRA string=https://github.com/golang/go/commit/370276a3e58c4794e1d604961274859fc6fc2501))

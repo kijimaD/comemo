@@ -1,12 +1,12 @@
 #!/bin/bash
 # Index 55628: 08a68b73a4843dfe8c4896cace3242b895342511
 
-echo "🚀 Generating explanation for commit 55628..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'
-これからコミット解説を生成します。以下の指示に厳密に従ってください。
+%!s(int=55628)
+EOF
+%!(EXTRA string=これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
 1.  まず、 ./commit_data/55628.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
@@ -44,5 +44,4 @@ echo "🚀 Generating explanation for commit 55628..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/08a68b73a4843dfe8c4896cace3242b895342511)
-EOF
+%!(EXTRA string=https://github.com/golang/go/commit/08a68b73a4843dfe8c4896cace3242b895342511))

@@ -1,12 +1,12 @@
 #!/bin/bash
 # Index 17320: f316a7ea87c192c62868331540db3ecc2fb2c08b
 
-echo "🚀 Generating explanation for commit 17320..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'
-これからコミット解説を生成します。以下の指示に厳密に従ってください。
+%!s(int=17320)
+EOF
+%!(EXTRA string=これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
 1.  まず、 ./commit_data/17320.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
@@ -44,5 +44,4 @@ echo "🚀 Generating explanation for commit 17320..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/f316a7ea87c192c62868331540db3ecc2fb2c08b)
-EOF
+%!(EXTRA string=https://github.com/golang/go/commit/f316a7ea87c192c62868331540db3ecc2fb2c08b))

@@ -1,12 +1,12 @@
 #!/bin/bash
 # Index 3933: 9f42ccb7819d7ffee449b26c0c9246c9993072f9
 
-echo "🚀 Generating explanation for commit 3933..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'
-これからコミット解説を生成します。以下の指示に厳密に従ってください。
+%!s(int=3933)
+EOF
+%!(EXTRA string=これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
 1.  まず、 ./commit_data/3933.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
@@ -44,5 +44,4 @@ echo "🚀 Generating explanation for commit 3933..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/9f42ccb7819d7ffee449b26c0c9246c9993072f9)
-EOF
+%!(EXTRA string=https://github.com/golang/go/commit/9f42ccb7819d7ffee449b26c0c9246c9993072f9))

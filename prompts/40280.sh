@@ -1,12 +1,12 @@
 #!/bin/bash
 # Index 40280: 08318f5942f361ea6d017ece52c177c4c475cd6c
 
-echo "🚀 Generating explanation for commit 40280..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'
-これからコミット解説を生成します。以下の指示に厳密に従ってください。
+%!s(int=40280)
+EOF
+%!(EXTRA string=これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
 1.  まず、 ./commit_data/40280.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
@@ -44,5 +44,4 @@ echo "🚀 Generating explanation for commit 40280..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/08318f5942f361ea6d017ece52c177c4c475cd6c)
-EOF
+%!(EXTRA string=https://github.com/golang/go/commit/08318f5942f361ea6d017ece52c177c4c475cd6c))

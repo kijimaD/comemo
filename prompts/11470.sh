@@ -1,12 +1,12 @@
 #!/bin/bash
 # Index 11470: e451fb8ffbca501b12611f97ec875e9544339aa0
 
-echo "🚀 Generating explanation for commit 11470..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'
-これからコミット解説を生成します。以下の指示に厳密に従ってください。
+%!s(int=11470)
+EOF
+%!(EXTRA string=これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
 1.  まず、 ./commit_data/11470.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
@@ -44,5 +44,4 @@ echo "🚀 Generating explanation for commit 11470..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/e451fb8ffbca501b12611f97ec875e9544339aa0)
-EOF
+%!(EXTRA string=https://github.com/golang/go/commit/e451fb8ffbca501b12611f97ec875e9544339aa0))

@@ -1,12 +1,12 @@
 #!/bin/bash
 # Index 16130: 78c4d50d250215cd99f8e56525a8c9cc0c092f63
 
-echo "🚀 Generating explanation for commit 16130..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'
-これからコミット解説を生成します。以下の指示に厳密に従ってください。
+%!s(int=16130)
+EOF
+%!(EXTRA string=これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
 1.  まず、 ./commit_data/16130.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
@@ -44,5 +44,4 @@ echo "🚀 Generating explanation for commit 16130..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/78c4d50d250215cd99f8e56525a8c9cc0c092f63)
-EOF
+%!(EXTRA string=https://github.com/golang/go/commit/78c4d50d250215cd99f8e56525a8c9cc0c092f63))

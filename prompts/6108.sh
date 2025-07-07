@@ -1,12 +1,12 @@
 #!/bin/bash
 # Index 6108: 3b226f9886faffc62c4f1b7b5adeebf0b2cb7a8f
 
-echo "🚀 Generating explanation for commit 6108..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'
-これからコミット解説を生成します。以下の指示に厳密に従ってください。
+%!s(int=6108)
+EOF
+%!(EXTRA string=これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
 1.  まず、 ./commit_data/6108.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
@@ -44,5 +44,4 @@ echo "🚀 Generating explanation for commit 6108..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/3b226f9886faffc62c4f1b7b5adeebf0b2cb7a8f)
-EOF
+%!(EXTRA string=https://github.com/golang/go/commit/3b226f9886faffc62c4f1b7b5adeebf0b2cb7a8f))

@@ -1,12 +1,12 @@
 #!/bin/bash
 # Index 13039: 56a76c88f8ff1d0b46168512b370e5a48b8ee2a8
 
-echo "🚀 Generating explanation for commit 13039..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'
-これからコミット解説を生成します。以下の指示に厳密に従ってください。
+%!s(int=13039)
+EOF
+%!(EXTRA string=これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
 1.  まず、 ./commit_data/13039.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
@@ -44,5 +44,4 @@ echo "🚀 Generating explanation for commit 13039..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/56a76c88f8ff1d0b46168512b370e5a48b8ee2a8)
-EOF
+%!(EXTRA string=https://github.com/golang/go/commit/56a76c88f8ff1d0b46168512b370e5a48b8ee2a8))
