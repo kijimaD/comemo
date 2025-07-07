@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/urfave/cli/v3"
+	cli "github.com/urfave/cli/v3"
 
 	"comemo/internal/collector"
 	"comemo/internal/config"
