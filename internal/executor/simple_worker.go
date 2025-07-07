@@ -169,9 +169,6 @@ func executeSimpleTaskWithContext(ctx context.Context, workerName string, task T
 		cmd.Dir = wd
 	}
 
-	// Inherit environment variables from parent process
-	cmd.Env = os.Environ()
-
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
@@ -261,26 +258,22 @@ func executeSimpleTaskWithContext(ctx context.Context, workerName string, task T
 		}
 	}
 
-	// Check if AI CLI already saved the file
-	fileContent, err := os.ReadFile(outputPath)
-	if err != nil {
+	// Perform quality validation on generated content
+	qualityResult, qualityErr := ValidateGeneratedContentForCLI(outputPath, task.CLI, outputStr)
+
+	if qualityErr != nil {
 		return WorkerResult{
 			Script:      task.Script,
 			CLI:         task.CLI,
 			Success:     false,
 			IsRetryable: true,
-			Error:       fmt.Errorf("error reading AI-generated file: %w", err),
+			Error:       fmt.Errorf("品質検証でエラーが発生: %w", qualityErr),
 			Output:      outputStr,
 			Duration:    time.Since(startTime),
 		}
 	}
 
-	fileContentStr := string(fileContent)
-	foundValidContent := strings.Contains(fileContentStr, "## コアとなるコードの解説") ||
-		strings.Contains(fileContentStr, "## 技術的詳細") ||
-		strings.Contains(fileContentStr, "# [インデックス")
-
-	if len(fileContentStr) > 500 && foundValidContent {
+	if qualityResult.Passed {
 		// Quality check passed - delete the script file on success
 		if err := os.Remove(scriptPath); err != nil {
 			logger.Warn("[%s] Failed to delete script: %v", workerName, err)
@@ -319,28 +312,8 @@ func executeSimpleTaskWithContext(ctx context.Context, workerName string, task T
 		}
 	}
 
-	// Quality check failed - analyze reasons based on written file content
-	var failureReasons []string
-
-	if len(fileContentStr) <= 500 {
-		failureReasons = append(failureReasons, fmt.Sprintf("insufficient content length (%d chars, required: >500)", len(fileContentStr)))
-	}
-
-	if !foundValidContent {
-		missingElements := []string{}
-		if !strings.Contains(fileContentStr, "## コアとなるコードの解説") {
-			missingElements = append(missingElements, "コアとなるコードの解説")
-		}
-		if !strings.Contains(fileContentStr, "## 技術的詳細") {
-			missingElements = append(missingElements, "技術的詳細")
-		}
-		if !strings.Contains(fileContentStr, "# [インデックス") {
-			missingElements = append(missingElements, "インデックス")
-		}
-		failureReasons = append(failureReasons, fmt.Sprintf("missing required sections: %s", strings.Join(missingElements, ", ")))
-	}
-
-	qualityFailureDetail := strings.Join(failureReasons, "; ")
+	// Quality check failed - use detailed failure reason from quality validation
+	qualityFailureDetail := qualityResult.FailureReason
 
 	// Output was invalid
 	logger.Warn("[%s] 品質チェック失敗: %s - %s",
