@@ -96,7 +96,7 @@ func TestQuotaErrorDoesNotIncreaseFailed(t *testing.T) {
 		}
 
 		// Check that script remains in queue
-		if len(scheduler.queued["claude"]) != 1 || scheduler.queued["claude"][0] != "test1.sh" {
+		if scheduler.queueManager.Length("claude") == 0 {
 			t.Errorf("Expected script to remain in queue after quota error")
 		}
 

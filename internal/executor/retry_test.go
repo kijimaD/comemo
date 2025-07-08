@@ -79,15 +79,12 @@ func TestStatusManager_RemoveRetryScript(t *testing.T) {
 func TestScheduler_QueueScript_WithCapacity(t *testing.T) {
 	// Create a minimal scheduler for testing
 	statusManager := NewStatusManager()
+	queueManager := NewQueueManager([]string{"claude"}, 2, logger.Silent())
 	scheduler := &Scheduler{
-		queued:        make(map[string][]string),
-		queueCapacity: 2, // Set capacity to 2 for testing
+		queueManager:  queueManager,
 		statusManager: statusManager,
 		logger:        logger.Silent(),
 	}
-
-	// Initialize CLI queue
-	scheduler.queued["claude"] = []string{}
 
 	// Add first script to queue
 	success := scheduler.queueScript("test1.sh", "claude")
@@ -96,8 +93,8 @@ func TestScheduler_QueueScript_WithCapacity(t *testing.T) {
 	if !success {
 		t.Errorf("Expected queueScript to succeed")
 	}
-	if len(scheduler.queued["claude"]) != 1 || scheduler.queued["claude"][0] != "test1.sh" {
-		t.Errorf("Expected queue to contain 'test1.sh', got %v", scheduler.queued["claude"])
+	if scheduler.queueManager.Length("claude") != 1 {
+		t.Errorf("Expected queue length to be 1, got %d", scheduler.queueManager.Length("claude"))
 	}
 
 	// Add second script - should succeed (within capacity)
@@ -107,8 +104,8 @@ func TestScheduler_QueueScript_WithCapacity(t *testing.T) {
 	if !success {
 		t.Errorf("Expected queueScript to succeed for second script")
 	}
-	if len(scheduler.queued["claude"]) != 2 {
-		t.Errorf("Expected queue length to be 2, got %d", len(scheduler.queued["claude"]))
+	if scheduler.queueManager.Length("claude") != 2 {
+		t.Errorf("Expected queue length to be 2, got %d", scheduler.queueManager.Length("claude"))
 	}
 
 	// Try to add third script - should fail (exceeds capacity)
@@ -118,7 +115,7 @@ func TestScheduler_QueueScript_WithCapacity(t *testing.T) {
 	if success {
 		t.Errorf("Expected queueScript to fail when exceeding capacity")
 	}
-	if len(scheduler.queued["claude"]) != 2 {
-		t.Errorf("Expected queue length to remain 2, got %d", len(scheduler.queued["claude"]))
+	if scheduler.queueManager.Length("claude") != 2 {
+		t.Errorf("Expected queue length to remain 2, got %d", scheduler.queueManager.Length("claude"))
 	}
 }

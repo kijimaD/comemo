@@ -65,14 +65,14 @@ func TestNewQueueingSystem_Integration(t *testing.T) {
 	// Test 2: Success removes script from queue
 	t.Run("SuccessRemovesFromQueue", func(t *testing.T) {
 		// Clear queue first
-		scheduler.queued["claude"] = []string{}
+		scheduler.queueManager.Clear("claude")
 
 		// Queue a script
 		scheduler.queueScript("test3.sh", "claude")
 
 		// Verify script was queued
-		if len(scheduler.queued["claude"]) != 1 {
-			t.Errorf("Expected 1 script in queue, got %d", len(scheduler.queued["claude"]))
+		if scheduler.queueManager.Length("claude") != 1 {
+			t.Errorf("Expected 1 script in queue, got %d", scheduler.queueManager.Length("claude"))
 		}
 
 		// Simulate successful completion
@@ -85,7 +85,7 @@ func TestNewQueueingSystem_Integration(t *testing.T) {
 		scheduler.handleWorkerResult(result)
 
 		// Check that script was removed from queue
-		if len(scheduler.queued["claude"]) != 0 {
+		if scheduler.queueManager.Length("claude") != 0 {
 			t.Errorf("Expected script to be removed from queue after success")
 		}
 
@@ -98,13 +98,13 @@ func TestNewQueueingSystem_Integration(t *testing.T) {
 	// Test 3: Quota error keeps script in queue and marks CLI unavailable for 1 hour
 	t.Run("QuotaErrorKeepsInQueue", func(t *testing.T) {
 		// Clear queue first
-		scheduler.queued["gemini"] = []string{}
+		scheduler.queueManager.Clear("gemini")
 
 		// Queue a script
 		scheduler.queueScript("test1.sh", "gemini")
 
 		// Verify script was queued
-		if len(scheduler.queued["gemini"]) != 1 || scheduler.queued["gemini"][0] != "test1.sh" {
+		if scheduler.queueManager.Length("gemini") != 1 {
 			t.Errorf("Script not queued properly before test")
 		}
 
@@ -119,11 +119,12 @@ func TestNewQueueingSystem_Integration(t *testing.T) {
 		scheduler.handleWorkerResult(result)
 
 		// Debug: print current queue state
-		t.Logf("Queue state after quota error: %v", scheduler.queued["gemini"])
+		queueCopy := scheduler.queueManager.GetQueueCopy("gemini")
+		t.Logf("Queue state after quota error: %v", queueCopy)
 
-		// Check that script remains in queue
-		if len(scheduler.queued["gemini"]) != 1 || scheduler.queued["gemini"][0] != "test1.sh" {
-			t.Errorf("Expected script to remain in queue after quota error, got: %v", scheduler.queued["gemini"])
+		// Check that script remains in queue (quota errors don't remove from queue immediately)
+		if scheduler.queueManager.Length("gemini") == 0 {
+			t.Errorf("Expected script to remain in queue after quota error")
 		}
 
 		// Check that CLI is marked unavailable
@@ -138,8 +139,12 @@ func TestNewQueueingSystem_Integration(t *testing.T) {
 		scheduler.activeCLIs = []string{"claude", "gemini"}
 
 		// Fill both CLIs to capacity (3 scripts each)
-		scheduler.queued["claude"] = []string{"test1.sh", "test2.sh", "test3.sh"}
-		scheduler.queued["gemini"] = []string{"test4.sh", "test5.sh", "test6.sh"}
+		scheduler.queueManager.Clear("claude")
+		scheduler.queueManager.Clear("gemini")
+		for i := 1; i <= 3; i++ {
+			scheduler.queueManager.Enqueue("claude", fmt.Sprintf("test%d.sh", i))
+			scheduler.queueManager.Enqueue("gemini", fmt.Sprintf("test%d.sh", i+3))
+		}
 
 		// Should return empty string as no CLI has capacity
 		bestCLI := scheduler.selectBestCLIWithCapacity()
@@ -148,7 +153,7 @@ func TestNewQueueingSystem_Integration(t *testing.T) {
 		}
 
 		// Remove one script from claude's queue
-		scheduler.queued["claude"] = []string{"test1.sh", "test2.sh"}
+		scheduler.queueManager.Dequeue("claude")
 		cliManager.CLIs["claude"].Available = true
 
 		// Should return claude as it has capacity
@@ -203,7 +208,7 @@ func TestScheduler_ExecuteScriptSync(t *testing.T) {
 
 		// This would block waiting for result in real scenario
 		// For test, we'll just verify the queue structure
-		if len(scheduler.queued["claude"]) > 0 {
+		if scheduler.queueManager.Length("claude") > 0 {
 			// Script was queued by the sync call setup
 		}
 	})

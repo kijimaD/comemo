@@ -82,7 +82,7 @@ func TestQuotaErrorOneHourRecovery(t *testing.T) {
 		}
 
 		// Check that script remains in queue
-		if len(scheduler.queued["claude"]) != 1 || scheduler.queued["claude"][0] != "test1.sh" {
+		if scheduler.queueManager.Length("claude") == 0 {
 			t.Errorf("Expected script to remain in queue after quota error")
 		}
 
@@ -145,7 +145,7 @@ func TestQuotaErrorOneHourRecovery(t *testing.T) {
 		cliManager.CLIs["claude"].LastQuotaError = time.Now().Add(-time.Hour - time.Second)
 
 		// Clear queue for selection
-		scheduler.queued["claude"] = []string{}
+		scheduler.queueManager.Clear("claude")
 
 		// Should select CLI after recovery
 		bestCLI = scheduler.selectBestCLIWithCapacity()

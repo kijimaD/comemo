@@ -37,8 +37,7 @@ type Scheduler struct {
 	cliManager     *CLIManager          // CLI状態管理
 	workers        map[string]chan Task // ワーカー名 -> タスクチャネル
 	results        chan WorkerResult    // ワーカーからの結果チャネル
-	queued         map[string][]string  // CLI名 -> キューイング中のスクリプトリスト
-	queueCapacity  int                  // 各CLIのキュー容量
+	queueManager   *QueueManager        // キュー管理
 	completed      map[string]bool      // 完了したスクリプト（既存互換性のため）
 	failed         map[string]int       // 失敗回数（既存互換性のため）
 	retryLimit     int                  // リトライ回数上限
@@ -57,14 +56,19 @@ type Scheduler struct {
 
 // NewScheduler creates a new scheduler instance
 func NewScheduler(cfg *config.Config, scripts []string, cliManager *CLIManager, statusManager *StatusManager, logger *logger.Logger) *Scheduler {
+	// Extract CLI names from cliManager
+	var cliNames []string
+	for cliName := range cliManager.CLIs {
+		cliNames = append(cliNames, cliName)
+	}
+
 	s := &Scheduler{
 		config:         cfg,
 		scripts:        scripts,
 		cliManager:     cliManager,
 		workers:        make(map[string]chan Task),
 		results:        make(chan WorkerResult, cfg.ResultChannelSize),
-		queued:         make(map[string][]string),
-		queueCapacity:  cfg.QueueCapacityPerCLI,
+		queueManager:   NewQueueManager(cliNames, cfg.QueueCapacityPerCLI, logger),
 		completed:      make(map[string]bool),
 		failed:         make(map[string]int),
 		retryLimit:     cfg.MaxRetries,
@@ -74,11 +78,6 @@ func NewScheduler(cfg *config.Config, scripts []string, cliManager *CLIManager, 
 		scriptStateMgr: NewScriptStateManager(cfg),
 		resultWaiters:  make(map[string]chan WorkerResult),
 		pendingScripts: make([]string, 0),
-	}
-
-	// Initialize queued lists for each CLI (empty initially)
-	for cliName := range cliManager.CLIs {
-		s.queued[cliName] = make([]string, 0, cfg.QueueCapacityPerCLI)
 	}
 
 	// Initialize script states
@@ -228,27 +227,21 @@ func (s *Scheduler) assignScript(script string) {
 	if bestCLI != "" {
 		s.logger.Debug("  → %s にキューイング", bestCLI)
 
-		// Add script to queue
-		s.queued[bestCLI] = append(s.queued[bestCLI], script)
-		s.logger.Debug("  → %s にキューイング完了: %s (キュー長: %d/%d)", bestCLI, script, len(s.queued[bestCLI]), s.queueCapacity)
+		// Add script to queue using QueueManager
+		if s.queueManager.Enqueue(bestCLI, script) {
+			s.logger.Debug("  → %s にキューイング完了: %s (キュー長: %d)", bestCLI, script, s.queueManager.Length(bestCLI))
 
-		// Try to execute first script in queue if worker has capacity
-		if len(s.queued[bestCLI]) > 0 {
-			firstScript := s.queued[bestCLI][0]
-			task := Task{
-				Script:  firstScript,
-				CLI:     bestCLI,
-				AddedAt: time.Now(),
-			}
-
-			// Non-blocking send
-			select {
-			case s.workers[bestCLI] <- task:
-				s.scriptStateMgr.SetScriptProcessing(firstScript, bestCLI)
-				s.statusManager.RecordScriptStart(firstScript, bestCLI)
-				s.logger.Debug("  → %s で実行開始: %s", bestCLI, firstScript)
-			default:
-				s.logger.Debug("  → %s のワーカーがビジー、キューに待機", bestCLI)
+			// Try to execute first script in queue if worker has capacity
+			if task := s.queueManager.ProcessQueue(bestCLI); task != nil {
+				// Non-blocking send
+				select {
+				case s.workers[bestCLI] <- *task:
+					s.scriptStateMgr.SetScriptProcessing(task.Script, bestCLI)
+					s.statusManager.RecordScriptStart(task.Script, bestCLI)
+					s.logger.Debug("  → %s で実行開始: %s", bestCLI, task.Script)
+				default:
+					s.logger.Debug("  → %s のワーカーがビジー、キューに待機", bestCLI)
+				}
 			}
 		}
 	} else {
@@ -264,9 +257,8 @@ func (s *Scheduler) selectBestCLIWithCapacity() string {
 	for _, name := range s.activeCLIs {
 		// Use IsAvailable to check current availability (includes recovery logic)
 		if s.cliManager.IsAvailable(name) {
-			// Check if this CLI has queue capacity
-			queueLen := len(s.queued[name])
-			if queueLen < s.queueCapacity {
+			// Check if this CLI has queue capacity using QueueManager
+			if s.queueManager.HasCapacity(name) {
 				availableCLIs = append(availableCLIs, name)
 			}
 		}
@@ -278,9 +270,9 @@ func (s *Scheduler) selectBestCLIWithCapacity() string {
 
 	// Select CLI with least queue length for load balancing
 	bestCLI := availableCLIs[0]
-	minQueueLen := len(s.queued[bestCLI])
+	minQueueLen := s.queueManager.Length(bestCLI)
 	for _, cliName := range availableCLIs[1:] {
-		queueLen := len(s.queued[cliName])
+		queueLen := s.queueManager.Length(cliName)
 		if queueLen < minQueueLen {
 			bestCLI = cliName
 			minQueueLen = queueLen
@@ -321,10 +313,7 @@ func (s *Scheduler) reevaluateQueuedScripts() {
 		}
 	}
 
-	totalQueued := 0
-	for _, scripts := range s.queued {
-		totalQueued += len(scripts)
-	}
+	totalQueued := s.queueManager.TotalLength()
 
 	if totalQueued == 0 {
 		s.logger.Debug("  キューイングスクリプトなし")
@@ -334,31 +323,30 @@ func (s *Scheduler) reevaluateQueuedScripts() {
 	s.logger.Debug("  総キューイング数: %d", totalQueued)
 
 	// Check each CLI's queued scripts
-	for cliName, scripts := range s.queued {
-		if len(scripts) == 0 {
+	queueStatus := s.queueManager.GetQueueStatus()
+	for cliName, queueLen := range queueStatus {
+		if queueLen == 0 {
 			continue
 		}
 
 		// Check if CLI is available and worker has capacity
 		if s.cliManager.IsAvailable(cliName) {
-			s.logger.Debug("  CLI %s が利用可能 (キュー数: %d)", cliName, len(scripts))
+			s.logger.Debug("  CLI %s が利用可能 (キュー数: %d)", cliName, queueLen)
 
 			// Try to execute first script in queue
-			if len(scripts) > 0 {
-				firstScript := scripts[0]
-
+			if firstScript, exists := s.queueManager.Peek(cliName); exists {
 				// Check new state management
 				scriptState := s.scriptStateMgr.GetScript(firstScript)
 				if scriptState == nil {
 					s.logger.Debug("    → %s の状態が見つからない", firstScript)
-					s.removeFromQueue(cliName, firstScript)
+					s.queueManager.Remove(cliName, firstScript)
 					continue
 				}
 
 				// Skip if completed or failed
 				if scriptState.State == StateCompleted || scriptState.State == StateFailed {
 					s.logger.Debug("    → %s はスキップ (状態: %s)", firstScript, scriptState.State.String())
-					s.removeFromQueue(cliName, firstScript)
+					s.queueManager.Remove(cliName, firstScript)
 					continue
 				}
 
@@ -370,19 +358,15 @@ func (s *Scheduler) reevaluateQueuedScripts() {
 				}
 
 				// Execute the script
-				task := Task{
-					Script:  firstScript,
-					CLI:     cliName,
-					AddedAt: time.Now(),
-				}
-
-				select {
-				case s.workers[cliName] <- task:
-					s.logger.Debug("    → %s を実行開始", firstScript)
-					s.scriptStateMgr.SetScriptProcessing(firstScript, cliName)
-					s.statusManager.RecordScriptStart(firstScript, cliName)
-				default:
-					s.logger.Debug("    → %s のワーカーがビジー", cliName)
+				if task := s.queueManager.ProcessQueue(cliName); task != nil {
+					select {
+					case s.workers[cliName] <- *task:
+						s.logger.Debug("    → %s を実行開始", task.Script)
+						s.scriptStateMgr.SetScriptProcessing(task.Script, cliName)
+						s.statusManager.RecordScriptStart(task.Script, cliName)
+					default:
+						s.logger.Debug("    → %s のワーカーがビジー", cliName)
+					}
 				}
 			}
 		} else {
@@ -393,7 +377,7 @@ func (s *Scheduler) reevaluateQueuedScripts() {
 			}
 			remaining := time.Until(cli.LastQuotaError.Add(recoveryDelay))
 			s.logger.Debug("  CLI %s はまだ利用不可 (キュー数: %d, 回復まで: %v)",
-				cliName, len(scripts), remaining)
+				cliName, queueLen, remaining)
 		}
 	}
 }
@@ -408,18 +392,18 @@ func (s *Scheduler) assignScriptForRetry(scriptName string) {
 	}
 
 	// Check if script is already in any queue
-	for cliName, scripts := range s.queued {
-		for _, queuedScript := range scripts {
-			if queuedScript == scriptName {
-				s.logger.Debug("    → %s は既に %s のキューに存在", scriptName, cliName)
-				return
-			}
-		}
+	if cliName, exists := s.queueManager.IsScriptInQueue(scriptName); exists {
+		s.logger.Debug("    → %s は既に %s のキューに存在", scriptName, cliName)
+		return
 	}
 
 	// Add to queue
-	s.queued[bestCLI] = append(s.queued[bestCLI], scriptName)
-	s.logger.Debug("    → %s をリトライ用に %s にキューイング", scriptName, bestCLI)
+	if s.queueManager.Enqueue(bestCLI, scriptName) {
+		s.logger.Debug("    → %s をリトライ用に %s にキューイング", scriptName, bestCLI)
+	} else {
+		s.logger.Debug("    → %s のキューイングに失敗", scriptName)
+		return
+	}
 
 	// 一元的なタスク状態管理: キューイング（リトライ）
 	if taskStateManager := s.getTaskStateManager(); taskStateManager != nil {
@@ -477,7 +461,7 @@ func (s *Scheduler) handleWorkerResult(result WorkerResult) {
 		// Update old state management for compatibility
 		s.completed[result.Script] = true
 		delete(s.failed, result.Script)
-		s.removeFromQueue(result.CLI, result.Script)
+		s.queueManager.MarkScriptProcessed(result.CLI, result.Script)
 		s.statusManager.RecordScriptComplete(result.Script, result.CLI, true, result.Duration, "")
 		s.statusManager.RemoveRetryScript(result.Script)
 		return
@@ -493,7 +477,7 @@ func (s *Scheduler) handleWorkerResult(result WorkerResult) {
 	if result.IsCritical {
 		s.logger.Error("  → 致命的エラー: %v", result.Error)
 		s.scriptStateMgr.SetScriptFailed(result.Script, errorMsg)
-		s.removeFromQueue(result.CLI, result.Script)
+		s.queueManager.MarkScriptProcessed(result.CLI, result.Script)
 		panic(&ExecutionError{
 			Type:     ErrorTypeCritical,
 			Message:  errorMsg,
@@ -515,7 +499,7 @@ func (s *Scheduler) handleWorkerResult(result WorkerResult) {
 	if scriptState.RetryCount >= scriptState.MaxRetries {
 		s.logger.Error("  → リトライ上限到達: %s (%d/%d)", result.Script, scriptState.RetryCount, scriptState.MaxRetries)
 		s.scriptStateMgr.SetScriptFailed(result.Script, errorMsg)
-		s.removeFromQueue(result.CLI, result.Script)
+		s.queueManager.MarkScriptProcessed(result.CLI, result.Script)
 		// Update old state management for compatibility
 		s.failed[result.Script] = s.retryLimit
 		s.statusManager.RecordScriptComplete(result.Script, result.CLI, false, result.Duration, errorMsg)
@@ -587,55 +571,28 @@ func (s *Scheduler) handleWorkerResult(result WorkerResult) {
 
 // queueScript queues a script for execution on a specific CLI
 func (s *Scheduler) queueScript(script string, cliName string) bool {
-	// Check if CLI has queue capacity
-	if len(s.queued[cliName]) >= s.queueCapacity {
-		s.logger.Debug("  CLI %s のキューが満杯: %d/%d", cliName, len(s.queued[cliName]), s.queueCapacity)
-		return false
-	}
-
-	// Queue the script
-	s.queued[cliName] = append(s.queued[cliName], script)
-	s.logger.Debug("  スクリプト %s を %s にキューイング (%d/%d)", script, cliName, len(s.queued[cliName]), s.queueCapacity)
-	return true
+	return s.queueManager.Enqueue(cliName, script)
 }
 
 // removeFromQueue removes a specific script from a CLI's queue
 func (s *Scheduler) removeFromQueue(cliName, script string) {
-	queue := s.queued[cliName]
-	for i, queuedScript := range queue {
-		if queuedScript == script {
-			// Remove script from queue
-			s.queued[cliName] = append(queue[:i], queue[i+1:]...)
-			s.logger.Debug("  スクリプト %s を %s のキューから除去 (残り: %d)", script, cliName, len(s.queued[cliName]))
-
-			// Try to start next script in queue
-			s.tryExecuteNextInQueue(cliName)
-			return
-		}
+	if s.queueManager.Remove(cliName, script) {
+		// Try to start next script in queue
+		s.tryExecuteNextInQueue(cliName)
 	}
-	s.logger.Debug("  スクリプト %s が %s のキューに見つからない", script, cliName)
 }
 
 // tryExecuteNextInQueue tries to execute the next script in the queue
 func (s *Scheduler) tryExecuteNextInQueue(cliName string) {
-	if len(s.queued[cliName]) == 0 {
-		return
-	}
-
-	nextScript := s.queued[cliName][0]
-	task := Task{
-		Script:  nextScript,
-		CLI:     cliName,
-		AddedAt: time.Now(),
-	}
-
-	// Non-blocking send
-	select {
-	case s.workers[cliName] <- task:
-		s.statusManager.RecordScriptStart(nextScript, cliName)
-		s.logger.Debug("  → 次のスクリプトを実行開始: %s", nextScript)
-	default:
-		s.logger.Debug("  → %s のワーカーがビジー", cliName)
+	if task := s.queueManager.ProcessQueue(cliName); task != nil {
+		// Non-blocking send
+		select {
+		case s.workers[cliName] <- *task:
+			s.statusManager.RecordScriptStart(task.Script, cliName)
+			s.logger.Debug("  → 次のスクリプトを実行開始: %s", task.Script)
+		default:
+			s.logger.Debug("  → %s のワーカーがビジー", cliName)
+		}
 	}
 }
 
@@ -645,10 +602,7 @@ func (s *Scheduler) isAllCompleted() bool {
 	totalCount := len(s.scripts)
 
 	// Check if there are any queued scripts
-	totalQueued := 0
-	for _, scripts := range s.queued {
-		totalQueued += len(scripts)
-	}
+	totalQueued := s.queueManager.TotalLength()
 
 	// Check if there are any failed scripts beyond retry limit
 	totalFailed := 0
@@ -769,7 +723,7 @@ func (s *Scheduler) assignPendingScripts() {
 	totalAvailableSlots := 0
 	for _, cliName := range s.activeCLIs {
 		if s.cliManager.IsAvailable(cliName) {
-			availableSlots := s.queueCapacity - len(s.queued[cliName])
+			availableSlots := s.queueManager.GetAvailableSlots(cliName)
 			if availableSlots > 0 {
 				totalAvailableSlots += availableSlots
 			}
@@ -827,37 +781,34 @@ func (s *Scheduler) assignPendingScripts() {
 		bestCLI := s.selectBestCLIWithCapacity()
 		if bestCLI != "" {
 			// Add script to queue
-			s.queued[bestCLI] = append(s.queued[bestCLI], script)
-			assignedCount++
+			if s.queueManager.Enqueue(bestCLI, script) {
+				assignedCount++
 
-			// 一元的なタスク状態管理: キューイング
-			if taskStateManager := s.getTaskStateManager(); taskStateManager != nil {
-				taskStateManager.TransitionToQueued(script, bestCLI)
+				// 一元的なタスク状態管理: キューイング
+				if taskStateManager := s.getTaskStateManager(); taskStateManager != nil {
+					taskStateManager.TransitionToQueued(script, bestCLI)
+				} else {
+					// Fallback to direct event logging
+					if eventLogger := s.getTaskEventLogger(); eventLogger != nil {
+						eventLogger.LogQueued(script, bestCLI)
+					}
+				}
+
+				// Try to execute immediately if worker has capacity
+				if task := s.queueManager.ProcessQueue(bestCLI); task != nil {
+					// Non-blocking send
+					select {
+					case s.workers[bestCLI] <- *task:
+						s.scriptStateMgr.SetScriptProcessing(task.Script, bestCLI)
+						s.statusManager.RecordScriptStart(task.Script, bestCLI)
+						s.logger.Debug("  → %s で実行開始: %s", bestCLI, task.Script)
+					default:
+						s.logger.Debug("  → %s のワーカーがビジー、キューに待機", bestCLI)
+					}
+				}
 			} else {
-				// Fallback to direct event logging
-				if eventLogger := s.getTaskEventLogger(); eventLogger != nil {
-					eventLogger.LogQueued(script, bestCLI)
-				}
-			}
-
-			// Try to execute immediately if worker has capacity
-			if len(s.queued[bestCLI]) > 0 {
-				firstScript := s.queued[bestCLI][0]
-				task := Task{
-					Script:  firstScript,
-					CLI:     bestCLI,
-					AddedAt: time.Now(),
-				}
-
-				// Non-blocking send
-				select {
-				case s.workers[bestCLI] <- task:
-					s.scriptStateMgr.SetScriptProcessing(firstScript, bestCLI)
-					s.statusManager.RecordScriptStart(firstScript, bestCLI)
-					s.logger.Debug("  → %s で実行開始: %s", bestCLI, firstScript)
-				default:
-					s.logger.Debug("  → %s のワーカーがビジー、キューに待機", bestCLI)
-				}
+				// Failed to enqueue, keep in pending
+				remainingScripts = append(remainingScripts, script)
 			}
 		} else {
 			// No available CLI with capacity, keep in pending
