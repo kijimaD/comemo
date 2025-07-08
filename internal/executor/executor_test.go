@@ -52,6 +52,11 @@ func TestIsQuotaError(t *testing.T) {
 			expected: true,
 		},
 		{
+			name:     "GaxiosError",
+			output:   "GaxiosError: Request failed with status code 429",
+			expected: true,
+		},
+		{
 			name:     "Normal output",
 			output:   "Processing completed successfully",
 			expected: false,

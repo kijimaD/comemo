@@ -70,6 +70,7 @@ var QuotaErrors = []string{
 	"rateLimitExceeded",
 	"per day per user",
 	"Claude AI usage limit reached",
+	"GaxiosError:",
 }
 
 // GetWorkingDir returns the current working directory
