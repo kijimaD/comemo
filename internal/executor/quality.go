@@ -64,9 +64,10 @@ func ValidateGeneratedContent(outputPath string) (*QualityCheckResult, error) {
 	// Additional quality checks can be added here
 
 	// Check for obvious error messages in content
-	// 通常の文章に含まれることがある
+	// 通常の文章に含まれないように注意する
 	errorIndicators := []string{
 		"API Error",
+		"Resource exhausted. Please try again later",
 	}
 
 	for _, indicator := range errorIndicators {
@@ -84,4 +85,3 @@ func ValidateGeneratedContent(outputPath string) (*QualityCheckResult, error) {
 		FileContent: fileContentStr,
 	}, nil
 }
-
