@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 805: 7766b12ead95c1f722f4a2a993acc8081f96fd8e
 
-echo "🚀 Generating explanation for commit 805..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 41044: bf36219cdd1d354d58107ed8903679f538948154
 
-echo "🚀 Generating explanation for commit 41044..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

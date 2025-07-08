@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 43090: 7dbf12573f793df84802f0a65b03e8e6d4186a5c
 
-echo "🚀 Generating explanation for commit 43090..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

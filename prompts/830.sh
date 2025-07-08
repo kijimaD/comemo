@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 830: 103fec0455fd8862509280dc5730717ceced111f
 
-echo "🚀 Generating explanation for commit 830..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 39868: cacab6455503e04b276542baffc19f5113ef133d
 
-echo "🚀 Generating explanation for commit 39868..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

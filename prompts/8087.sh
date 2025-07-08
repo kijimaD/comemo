@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 8087: b065b56da1cccf42e913c1dd1c72500495ef56e7
 
-echo "🚀 Generating explanation for commit 8087..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

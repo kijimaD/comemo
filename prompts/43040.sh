@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 43040: 52b457d6f320c3491ab14a71afc3c7416b36430c
 
-echo "🚀 Generating explanation for commit 43040..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

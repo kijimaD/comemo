@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 302: 1d31a25d836f15f7297996ae6778e1dd8c4cdaef
 
-echo "🚀 Generating explanation for commit 302..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

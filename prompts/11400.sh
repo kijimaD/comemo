@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 11400: 1e09031f7f9293ba032c88abb55b373d341f01bf
 
-echo "🚀 Generating explanation for commit 11400..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

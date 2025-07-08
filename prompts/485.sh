@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 485: 033682deec8cf13b4e821e30ef774f843ab1e0d0
 
-echo "🚀 Generating explanation for commit 485..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

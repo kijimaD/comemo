@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 9060: f4acaa8ecd3057e99ce2a7b92c6b2b4cdd363743
 
-echo "🚀 Generating explanation for commit 9060..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

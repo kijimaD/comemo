@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 50877: fda92615040c831bdcd812fd20ddb0da9dcef70b
 
-echo "🚀 Generating explanation for commit 50877..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

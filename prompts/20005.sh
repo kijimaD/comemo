@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 20005: 059d089fc0a02c2580b67d271baa269de6c0894c
 
-echo "🚀 Generating explanation for commit 20005..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

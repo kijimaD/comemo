@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 451: 6acdf3edff349e966a4928dac91101379ff5b225
 
-echo "🚀 Generating explanation for commit 451..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 40264: 9f12e2e04bc5fb5c53546cf9c53dabe0d1c8fa55
 
-echo "🚀 Generating explanation for commit 40264..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

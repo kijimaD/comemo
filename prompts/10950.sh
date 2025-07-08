@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 10950: 0509727b0d8c4175f3d8957b2066916e889da383
 
-echo "🚀 Generating explanation for commit 10950..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

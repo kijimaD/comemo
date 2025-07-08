@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 21441: ccdb50931f815fdf8de16f876478d7a1d0ee6696
 
-echo "🚀 Generating explanation for commit 21441..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

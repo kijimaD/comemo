@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 51081: 5f6552018d1ec920c3ca3d459691528f48363c3c
 
-echo "🚀 Generating explanation for commit 51081..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

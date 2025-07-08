@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 20049: dbf406a9d89c00ec1975368ae95a70da9f704eaa
 
-echo "🚀 Generating explanation for commit 20049..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

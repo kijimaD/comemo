@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 360: 0cee30280200c1a7e8c59c8fec579e20182e3658
 
-echo "🚀 Generating explanation for commit 360..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

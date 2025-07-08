@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 9880: e7042418c5c41cebb6453c5d807b89e2619e7b88
 
-echo "🚀 Generating explanation for commit 9880..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

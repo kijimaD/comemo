@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 15041: ba05a436084376d0b17acb0fdde0a7bc78ab2fc1
 
-echo "🚀 Generating explanation for commit 15041..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

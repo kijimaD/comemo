@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 2022: 457b0030f70e7179cbfb1935461071e8129ed75e
 
-echo "🚀 Generating explanation for commit 2022..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

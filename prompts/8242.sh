@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 8242: 87ac7c77c0e7ca1da242982ef4bc92940e5d681a
 
-echo "🚀 Generating explanation for commit 8242..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

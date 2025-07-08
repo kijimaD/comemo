@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 410: 84c8d85fe6b597a586a1cf4621647e3c23903524
 
-echo "🚀 Generating explanation for commit 410..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

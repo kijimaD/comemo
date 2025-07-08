@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 40060: f248cd3a0753ce02928525268d9c7d1fcceffee0
 
-echo "🚀 Generating explanation for commit 40060..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

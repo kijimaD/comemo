@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 8056: 4fe9f574139edfaca94fb30f629d9c32348a3cac
 
-echo "🚀 Generating explanation for commit 8056..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

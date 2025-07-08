@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 45500: 8fdc79e18a9704185bd6471b592db1e8004bd993
 
-echo "🚀 Generating explanation for commit 45500..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

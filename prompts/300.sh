@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 300: 835cd46941683bce57689a184ab934b7739da036
 
-echo "🚀 Generating explanation for commit 300..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

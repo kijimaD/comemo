@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 20400: 8217b4a203daaa7f24590f9369c77b758dad1cd6
 
-echo "🚀 Generating explanation for commit 20400..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

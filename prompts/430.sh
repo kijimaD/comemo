@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 430: eccea1980d961a6ac6ab4cf3294edce8ca6e9c11
 
-echo "🚀 Generating explanation for commit 430..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

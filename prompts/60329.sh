@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 60329: 2b12bbcb4561a6f45e8036e71c8440b7bca50de6
 
-echo "🚀 Generating explanation for commit 60329..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

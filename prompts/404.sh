@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 404: 05caa7f82030327ccc9ae63a2b0121a029286501
 
-echo "🚀 Generating explanation for commit 404..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 8070: 4c5dd0e1eed79cf530c6963ce34ce78d950e0e79
 
-echo "🚀 Generating explanation for commit 8070..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

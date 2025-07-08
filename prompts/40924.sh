@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 40924: 5498fa90e9921193be11c6e6a9e017a53c0e1588
 
-echo "🚀 Generating explanation for commit 40924..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

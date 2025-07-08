@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 8067: da8c5e7239d7c1e7238605c2b7f9a954dd8a2997
 
-echo "🚀 Generating explanation for commit 8067..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

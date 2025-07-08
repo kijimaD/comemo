@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 8044: 69a9bf4195af3a4537bf4e1c23a99599cdc7b163
 
-echo "🚀 Generating explanation for commit 8044..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

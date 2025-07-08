@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 30443: cfd89164bb6af2d1a660b75ded8c0801372924e2
 
-echo "🚀 Generating explanation for commit 30443..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

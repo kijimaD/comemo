@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 911: 5d0e5a78670d71115075228b4d8e52d296e35bbd
 
-echo "🚀 Generating explanation for commit 911..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

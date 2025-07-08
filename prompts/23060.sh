@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 23060: a76099f0d9699ee0017951a541197bdaa2c2d112
 
-echo "🚀 Generating explanation for commit 23060..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

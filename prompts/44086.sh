@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 44086: dd98c0ca3f19a8de7a8422c92839ff985f9827e4
 
-echo "🚀 Generating explanation for commit 44086..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

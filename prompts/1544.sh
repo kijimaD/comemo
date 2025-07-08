@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 1544: 9e3b0f444ae27629b3e93b2e8d0d8ba0f6f939ba
 
-echo "🚀 Generating explanation for commit 1544..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

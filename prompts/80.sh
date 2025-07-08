@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 80: 0cafb9ea3d3d34627e8f492ccafa6ba9b633a213
 
-echo "🚀 Generating explanation for commit 80..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

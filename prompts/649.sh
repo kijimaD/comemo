@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 649: db9002f15247730ce5c11d3e9fdeb19001a82dd5
 
-echo "🚀 Generating explanation for commit 649..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

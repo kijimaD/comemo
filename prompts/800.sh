@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 800: 347cf67a8534b301588822489590b1f4667e4aed
 
-echo "🚀 Generating explanation for commit 800..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

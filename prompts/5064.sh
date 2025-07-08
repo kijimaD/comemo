@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 5064: a24f8144e46d1083dbc8bc8a4cb95e0b0fc15217
 
-echo "🚀 Generating explanation for commit 5064..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

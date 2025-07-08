@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 3791: ca2a69ea0666286dbfd556e03a56ed2da8bb3fb0
 
-echo "🚀 Generating explanation for commit 3791..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

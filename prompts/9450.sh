@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 9450: a9fe3a0ce3ab60f35ee6c558c455df05e4696a04
 
-echo "🚀 Generating explanation for commit 9450..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

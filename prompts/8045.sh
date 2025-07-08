@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 8045: fe3dcfee274a41456187970f6059d091f9dbb525
 
-echo "🚀 Generating explanation for commit 8045..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

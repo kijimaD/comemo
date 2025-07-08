@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 720: 5f0a5e7a1335eb9e4e6b430a61a9bfb1d168df21
 
-echo "🚀 Generating explanation for commit 720..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 1645: 6506148850a8404979df82b4f1ca7620cd8e9c16
 
-echo "🚀 Generating explanation for commit 1645..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

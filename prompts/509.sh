@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 509: 258c817a1b14acc5f24e96e03e6fad1ea6d18c19
 
-echo "🚀 Generating explanation for commit 509..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

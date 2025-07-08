@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 8010: cf3323f511e1cf4d07258b54fd982252f0313753
 
-echo "🚀 Generating explanation for commit 8010..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

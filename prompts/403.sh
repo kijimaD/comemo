@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 403: 777ee7163bba96f2c9b3dfe135d8ad4ab837c062
 
-echo "🚀 Generating explanation for commit 403..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

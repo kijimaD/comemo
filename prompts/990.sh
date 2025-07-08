@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 990: c5e7e1960498be0b3e75b3d8f072f5a043050142
 
-echo "🚀 Generating explanation for commit 990..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

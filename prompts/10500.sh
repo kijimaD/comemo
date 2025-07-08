@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 10500: d1324d8a7a2a74b9eed8d62a28445db1bbdb90a9
 
-echo "🚀 Generating explanation for commit 10500..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 14001: cf513387c3839e0815016ec8d9b4cf0cd1802aae
 
-echo "🚀 Generating explanation for commit 14001..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

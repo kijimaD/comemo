@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 4098: 6240b0110ac0c3875ab2943ef2569b1689882178
 
-echo "🚀 Generating explanation for commit 4098..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

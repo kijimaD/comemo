@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 54043: c91b1009d52d91eb3a949945789ff235246c0075
 
-echo "🚀 Generating explanation for commit 54043..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

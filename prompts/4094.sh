@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 4094: 60df9239160497e8e93d7f62c32b281746932269
 
-echo "🚀 Generating explanation for commit 4094..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

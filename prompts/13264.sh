@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 13264: 5612fd770dcf0d89a43bcb01713805883493a3e4
 
-echo "🚀 Generating explanation for commit 13264..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

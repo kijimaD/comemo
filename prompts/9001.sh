@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 9001: bf9531f80bc11de82fe739b43156705b1816acf3
 
-echo "🚀 Generating explanation for commit 9001..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

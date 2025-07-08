@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 9381: c20ced956ece23a5e8f1d5b6e48ad9ba8e8c5d05
 
-echo "🚀 Generating explanation for commit 9381..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

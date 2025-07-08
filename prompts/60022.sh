@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 60022: db7bb2742ce01601842e277e7808d225ff8390cd
 
-echo "🚀 Generating explanation for commit 60022..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

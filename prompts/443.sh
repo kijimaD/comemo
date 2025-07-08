@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 443: f436ade2fd12d58c23f5b69b1e55b98c19efb3c0
 
-echo "🚀 Generating explanation for commit 443..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

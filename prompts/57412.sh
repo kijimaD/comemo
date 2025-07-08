@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 57412: b55e4a7e26a8663d427264b241a90a5213aa8392
 
-echo "🚀 Generating explanation for commit 57412..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

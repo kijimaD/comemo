@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 9913: cab53c899ce19305be4bfac730a9d1e9b7f0b1ce
 
-echo "🚀 Generating explanation for commit 9913..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

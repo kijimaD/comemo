@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 40410: 2aa8971910a24e35c47c304e5b8d241c134ddd5a
 
-echo "🚀 Generating explanation for commit 40410..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

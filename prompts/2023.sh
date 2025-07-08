@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 2023: 17c290ffb9a14061321eb570a8d3e3a93d8ca2c9
 
-echo "🚀 Generating explanation for commit 2023..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

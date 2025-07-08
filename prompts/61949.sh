@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 61949: b9955f0ad952a22388eead15e3d15610a29e03a0
 
-echo "🚀 Generating explanation for commit 61949..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

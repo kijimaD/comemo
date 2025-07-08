@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 8029: db5c5d6fa6ed29e7afc2941562936f12741733dd
 
-echo "🚀 Generating explanation for commit 8029..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

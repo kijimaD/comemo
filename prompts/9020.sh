@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 9020: f9f21aa1fb45aaa4eece55f192783bfa46df4909
 
-echo "🚀 Generating explanation for commit 9020..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

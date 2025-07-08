@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 9050: e3a773479dd59e4722108377078c2c8404e9234c
 
-echo "🚀 Generating explanation for commit 9050..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

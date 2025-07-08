@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 8024: d9763147764400c6fb7a0701a5c9cbdd6682062d
 
-echo "🚀 Generating explanation for commit 8024..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

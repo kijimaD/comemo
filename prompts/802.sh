@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 802: 8877d27b401046f6b6403946ad5bcb50dd349539
 
-echo "🚀 Generating explanation for commit 802..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 27737: cabb1402568ae7d05d9d5adf56953a4792085a81
 
-echo "🚀 Generating explanation for commit 27737..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

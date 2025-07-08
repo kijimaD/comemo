@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 43113: cdc1b195139ecb8d1cfed028cf5b50f11d591f2e
 
-echo "🚀 Generating explanation for commit 43113..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

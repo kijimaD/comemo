@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 60818: 194fa2eb6cdeaddc4a89fae4610f99d8060d10a0
 
-echo "🚀 Generating explanation for commit 60818..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

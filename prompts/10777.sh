@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 10777: 6a401339c113769be5339483bf134284292f03bc
 
-echo "🚀 Generating explanation for commit 10777..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

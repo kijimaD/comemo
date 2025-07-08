@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 64: 1975ff8b44108208ba64da1bc762a90a14ba23f5
 
-echo "🚀 Generating explanation for commit 64..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

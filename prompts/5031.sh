@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 5031: 16e6df980769eef5d11607bc4bbe463c9400b766
 
-echo "🚀 Generating explanation for commit 5031..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

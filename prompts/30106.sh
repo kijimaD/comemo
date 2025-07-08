@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 30106: 213ee3d20ed35bf1bce8bb3e93fd7b0fca562536
 
-echo "🚀 Generating explanation for commit 30106..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 301: f86c6f673e6de1fd57c8b0d79a833e0880a92aa3
 
-echo "🚀 Generating explanation for commit 301..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

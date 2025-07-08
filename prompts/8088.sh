@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 8088: 2fca1a4049ad96cecaa1c35a44d11265cd2f7e45
 
-echo "🚀 Generating explanation for commit 8088..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

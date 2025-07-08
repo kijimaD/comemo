@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 389: dead164cc0d387ca151b14195e900d998dc30bde
 
-echo "🚀 Generating explanation for commit 389..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

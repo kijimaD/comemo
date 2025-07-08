@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 40104: 3b37ff453edd9664045e656d1c02e63703517399
 
-echo "🚀 Generating explanation for commit 40104..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'

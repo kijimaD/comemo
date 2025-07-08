@@ -1,8 +1,6 @@
 #!/bin/bash
 # Index 16340: c3dbe5d24c8036679d733be3d7aef40f56c7d379
 
-echo "🚀 Generating explanation for commit 16340..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'
