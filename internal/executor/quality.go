@@ -85,23 +85,3 @@ func ValidateGeneratedContent(outputPath string) (*QualityCheckResult, error) {
 	}, nil
 }
 
-// ValidateGeneratedContentForCLI performs CLI-specific quality validation
-func ValidateGeneratedContentForCLI(outputPath, cliName, outputStr string) (*QualityCheckResult, error) {
-	// First try to validate from file
-	result, err := ValidateGeneratedContent(outputPath)
-
-	// If file doesn't exist and we have output from CLI that doesn't create files (like Gemini)
-	if err != nil && cliName == "gemini" && len(outputStr) > 100 {
-		// Save the output to file for validation
-		if writeErr := os.WriteFile(outputPath, []byte(outputStr), 0644); writeErr != nil {
-			return &QualityCheckResult{
-				Passed:        false,
-				FailureReason: fmt.Sprintf("ファイル作成エラー: %v", writeErr),
-			}, writeErr
-		}
-		// Retry validation
-		return ValidateGeneratedContent(outputPath)
-	}
-
-	return result, err
-}

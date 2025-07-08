@@ -60,7 +60,7 @@ Goの技術的詳細について説明します。コミットの変更内容を
 			content: `# [インデックス 123] ファイルの概要
 
 ## 技術的詳細
-Error: 何かがうまくいきませんでした。この文章は500文字を超えるために十分な長さを持っています。
+API Error: 何かがうまくいきませんでした。この文章は500文字を超えるために十分な長さを持っています。
 Goの技術的詳細について説明します。コミットの変更内容を詳しく解説し、
 背景や理由についても詳しく述べます。実装の詳細やパフォーマンスへの影響、
 互換性についても言及します。これにより、読者は変更の意図と効果を
@@ -105,39 +105,3 @@ Goの技術的詳細について説明します。コミットの変更内容を
 	}
 }
 
-func TestValidateGeneratedContentForCLI(t *testing.T) {
-	// Create temporary directory
-	tmpDir, err := os.MkdirTemp("", "quality_cli_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	// Test Gemini CLI with no file
-	testFile := filepath.Join(tmpDir, "test.md")
-	geminiOutput := `# [インデックス 123] ファイルの概要
-
-## 技術的詳細
-Gemini CLIからの出力です。この文章は500文字を超えるために十分な長さを持っています。
-Goの技術的詳細について説明します。コミットの変更内容を詳しく解説し、
-背景や理由についても詳しく述べます。実装の詳細やパフォーマンスへの影響、
-互換性についても言及します。これにより、読者は変更の意図と効果を
-理解できるようになります。
-
-## コアとなるコードの解説
-コードの詳細な解説がここに入ります。`
-
-	result, err := ValidateGeneratedContentForCLI(testFile, "gemini", geminiOutput)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-
-	if !result.Passed {
-		t.Errorf("Expected Gemini validation to pass, got: %s", result.FailureReason)
-	}
-
-	// Check that file was created
-	if _, err := os.Stat(testFile); os.IsNotExist(err) {
-		t.Error("Expected file to be created for Gemini CLI")
-	}
-}

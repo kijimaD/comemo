@@ -258,8 +258,23 @@ func executeSimpleTaskWithContext(ctx context.Context, workerName string, task T
 		}
 	}
 
+	// Always write output to file (AI generates content to stdout, Go writes to file)
+	if len(outputStr) > 0 {
+		if err := os.WriteFile(outputPath, []byte(outputStr), 0644); err != nil {
+			return WorkerResult{
+				Script:      task.Script,
+				CLI:         task.CLI,
+				Success:     false,
+				IsRetryable: true,
+				Error:       fmt.Errorf("ファイル書き込みエラー: %w", err),
+				Output:      outputStr,
+				Duration:    time.Since(startTime),
+			}
+		}
+	}
+
 	// Perform quality validation on generated content
-	qualityResult, qualityErr := ValidateGeneratedContentForCLI(outputPath, task.CLI, outputStr)
+	qualityResult, qualityErr := ValidateGeneratedContent(outputPath)
 
 	if qualityErr != nil {
 		return WorkerResult{
