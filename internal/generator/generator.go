@@ -138,14 +138,12 @@ func generatePromptScript(cfg *config.Config, hash string, index int, commitData
 	scriptContent := fmt.Sprintf(`#!/bin/bash
 # Index %d: %s
 
-echo "🚀 Generating explanation for commit %d..."
-
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'
 %s
 EOF
-`, index, hash, index, fmt.Sprintf(prompt, index, index, hash, githubURL, index, githubURL, githubURL))
+`, index, hash, fmt.Sprintf(prompt, index, index, hash, githubURL, index, githubURL, githubURL))
 
 	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
 		return fmt.Errorf("failed to write script file: %w", err)
