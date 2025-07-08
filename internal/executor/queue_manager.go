@@ -9,10 +9,10 @@ import (
 
 // QueueManager manages script queues for different CLIs
 type QueueManager struct {
-	queues    map[string][]string // CLI名 -> キューイング中のスクリプトリスト
-	capacity  int                 // 各CLIのキュー容量
-	mu        sync.RWMutex
-	logger    *logger.Logger
+	queues   map[string][]string // CLI名 -> キューイング中のスクリプトリスト
+	capacity int                 // 各CLIのキュー容量
+	mu       sync.RWMutex
+	logger   *logger.Logger
 }
 
 // NewQueueManager creates a new queue manager

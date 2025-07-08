@@ -383,10 +383,10 @@ func TestWorker_SimpleWorkerMethods(t *testing.T) {
 	// Test SimpleWorker method
 	tasks := make(chan Task, 1)
 	results := make(chan WorkerResult, 1)
-	
+
 	// Close channels immediately for testing
 	close(tasks)
-	
+
 	// This should not hang or panic
 	worker.SimpleWorker(tasks, results)
 }
