@@ -44,7 +44,7 @@ func (w *Worker) Run(ctx context.Context, tasks <-chan Task, results chan<- Work
 			}
 
 			// Check if task is already completed before executing
-			if w.isTaskCompleted(task.Script) {
+			if w.IsTaskCompleted(task.Script) {
 				w.logger.Debug("[%s] タスク %s は既に完了済み - スキップ", w.name, task.Script)
 				continue
 			}
@@ -69,7 +69,7 @@ func (w *Worker) ExecuteTask(ctx context.Context, task Task) WorkerResult {
 	startTime := time.Now()
 
 	// Double-check if task is already completed before starting execution
-	if w.isTaskCompleted(task.Script) {
+	if w.IsTaskCompleted(task.Script) {
 		w.logger.Debug("[%s] タスク %s は既に完了済み - 実行スキップ", w.name, task.Script)
 		return WorkerResult{
 			Script:   task.Script,
@@ -123,8 +123,8 @@ func (w *Worker) ExecuteTask(ctx context.Context, task Task) WorkerResult {
 	return result
 }
 
-// isTaskCompleted checks if a task is already completed
-func (w *Worker) isTaskCompleted(scriptName string) bool {
+// IsTaskCompleted checks if a task is already completed (public method)
+func (w *Worker) IsTaskCompleted(scriptName string) bool {
 	// Check if output file already exists (task completed successfully)
 	outputPath := filepath.Join(w.cliManager.Config.OutputDir, strings.TrimSuffix(scriptName, ".sh")+".md")
 	if _, err := os.Stat(outputPath); err == nil {
@@ -465,4 +465,54 @@ func (w *Worker) GetName() string {
 // GetCLIManager returns the CLI manager
 func (w *Worker) GetCLIManager() *CLIManager {
 	return w.cliManager
+}
+
+// TODO: Simpleがつく意味は?
+// TODO: この関数シグネチャの意味あるか? WithContext系
+// SimpleWorker creates a new worker and runs it with the given channels
+func (w *Worker) SimpleWorker(tasks <-chan Task, results chan<- WorkerResult) {
+	ctx := context.Background()
+	w.SimpleWorkerWithContext(ctx, tasks, results)
+}
+
+// SimpleWorkerWithContext creates a new worker and runs it with context support
+func (w *Worker) SimpleWorkerWithContext(ctx context.Context, tasks <-chan Task, results chan<- WorkerResult) {
+	w.Run(ctx, tasks, results)
+}
+
+// ExecuteSimpleTask executes a single task and returns the result
+func (w *Worker) ExecuteSimpleTask(task Task) WorkerResult {
+	ctx := context.Background()
+	return w.ExecuteSimpleTaskWithContext(ctx, task)
+}
+
+// ExecuteSimpleTaskWithContext executes a single task with context and returns the result
+func (w *Worker) ExecuteSimpleTaskWithContext(ctx context.Context, task Task) WorkerResult {
+	return w.ExecuteTask(ctx, task)
+}
+
+// Static utility functions that can be used independently
+
+// CreateWorkerAndRun creates a new worker and runs it immediately
+func CreateWorkerAndRun(name string, manager *CLIManager, tasks <-chan Task, results chan<- WorkerResult) {
+	ctx := context.Background()
+	CreateWorkerAndRunWithContext(ctx, name, manager, tasks, results)
+}
+
+// CreateWorkerAndRunWithContext creates a new worker and runs it with context support
+func CreateWorkerAndRunWithContext(ctx context.Context, name string, manager *CLIManager, tasks <-chan Task, results chan<- WorkerResult) {
+	worker := NewWorker(name, manager)
+	worker.Run(ctx, tasks, results)
+}
+
+// ExecuteTaskWithManager executes a single task using a temporary worker
+func ExecuteTaskWithManager(workerName string, task Task, manager *CLIManager) WorkerResult {
+	ctx := context.Background()
+	return ExecuteTaskWithManagerAndContext(ctx, workerName, task, manager)
+}
+
+// ExecuteTaskWithManagerAndContext executes a single task using a temporary worker with context
+func ExecuteTaskWithManagerAndContext(ctx context.Context, workerName string, task Task, manager *CLIManager) WorkerResult {
+	worker := NewWorker(workerName, manager)
+	return worker.ExecuteTask(ctx, task)
 }

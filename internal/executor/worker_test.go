@@ -73,7 +73,7 @@ func TestWorker_IsTaskCompleted(t *testing.T) {
 	worker := NewWorker("test-worker", cliManager)
 
 	// Test case 1: Task not completed (no output file)
-	if worker.isTaskCompleted("test1.sh") {
+	if worker.IsTaskCompleted("test1.sh") {
 		t.Errorf("Expected task to not be completed when output file doesn't exist")
 	}
 
@@ -83,7 +83,7 @@ func TestWorker_IsTaskCompleted(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !worker.isTaskCompleted("test1.sh") {
+	if !worker.IsTaskCompleted("test1.sh") {
 		t.Errorf("Expected task to be completed when output file exists")
 	}
 }
@@ -366,5 +366,169 @@ func TestWorker_Run_ChannelClose(t *testing.T) {
 		// Worker finished as expected
 	case <-time.After(1 * time.Second):
 		t.Errorf("Worker did not finish within timeout after channel close")
+	}
+}
+
+func TestWorker_SimpleWorkerMethods(t *testing.T) {
+	// Create test CLI manager
+	cliManager := &CLIManager{
+		Options: &ExecutorOptions{
+			Logger: logger.Silent(),
+		},
+	}
+
+	// Create worker
+	worker := NewWorker("test-worker", cliManager)
+
+	// Test SimpleWorker method
+	tasks := make(chan Task, 1)
+	results := make(chan WorkerResult, 1)
+	
+	// Close channels immediately for testing
+	close(tasks)
+	
+	// This should not hang or panic
+	worker.SimpleWorker(tasks, results)
+}
+
+func TestWorker_ExecuteSimpleTaskMethods(t *testing.T) {
+	// Create temporary directories
+	tempDir := t.TempDir()
+	outputDir := filepath.Join(tempDir, "output")
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create test configuration
+	cfg := &config.Config{
+		PromptsDir:       tempDir,
+		OutputDir:        outputDir,
+		ExecutionTimeout: 30 * time.Second,
+	}
+
+	// Create test CLI manager
+	cliManager := &CLIManager{
+		CLIs: map[string]*CLIState{
+			"claude": {Available: true},
+		},
+		Config: cfg,
+		Options: &ExecutorOptions{
+			Logger: logger.Silent(),
+		},
+	}
+	cliManager.mu = sync.RWMutex{}
+
+	// Create worker
+	worker := NewWorker("test-worker", cliManager)
+
+	// Create completed task (output file already exists)
+	outputPath := filepath.Join(outputDir, "test.md")
+	if err := os.WriteFile(outputPath, []byte("already completed"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create task
+	task := Task{
+		Script:  "test.sh",
+		CLI:     "claude",
+		AddedAt: time.Now(),
+	}
+
+	// Test ExecuteSimpleTask method
+	result := worker.ExecuteSimpleTask(task)
+	if !result.Success {
+		t.Errorf("Expected task to succeed for already completed task")
+	}
+
+	// Test ExecuteSimpleTaskWithContext method
+	ctx := context.Background()
+	result = worker.ExecuteSimpleTaskWithContext(ctx, task)
+	if !result.Success {
+		t.Errorf("Expected task to succeed for already completed task")
+	}
+}
+
+func TestCreateWorkerAndRun(t *testing.T) {
+	// Create test CLI manager
+	cliManager := &CLIManager{
+		Options: &ExecutorOptions{
+			Logger: logger.Silent(),
+		},
+	}
+
+	// Create channels
+	tasks := make(chan Task)
+	results := make(chan WorkerResult, 1)
+
+	// Start worker in goroutine
+	done := make(chan struct{})
+	go func() {
+		CreateWorkerAndRun("test-worker", cliManager, tasks, results)
+		close(done)
+	}()
+
+	// Close tasks channel immediately
+	close(tasks)
+
+	// Wait for worker to finish (with timeout)
+	select {
+	case <-done:
+		// Worker finished as expected
+	case <-time.After(1 * time.Second):
+		t.Errorf("Worker did not finish within timeout after channel close")
+	}
+}
+
+func TestExecuteTaskWithManager(t *testing.T) {
+	// Create temporary directories
+	tempDir := t.TempDir()
+	outputDir := filepath.Join(tempDir, "output")
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create test configuration
+	cfg := &config.Config{
+		PromptsDir:       tempDir,
+		OutputDir:        outputDir,
+		ExecutionTimeout: 30 * time.Second,
+	}
+
+	// Create test CLI manager
+	cliManager := &CLIManager{
+		CLIs: map[string]*CLIState{
+			"claude": {Available: true},
+		},
+		Config: cfg,
+		Options: &ExecutorOptions{
+			Logger: logger.Silent(),
+		},
+	}
+	cliManager.mu = sync.RWMutex{}
+
+	// Create completed task (output file already exists)
+	outputPath := filepath.Join(outputDir, "test.md")
+	if err := os.WriteFile(outputPath, []byte("already completed"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create task
+	task := Task{
+		Script:  "test.sh",
+		CLI:     "claude",
+		AddedAt: time.Now(),
+	}
+
+	// Test ExecuteTaskWithManager function
+	result := ExecuteTaskWithManager("test-worker", task, cliManager)
+	if !result.Success {
+		t.Errorf("Expected task to succeed for already completed task")
+	}
+
+	// Test ExecuteTaskWithManagerAndContext function
+	ctx := context.Background()
+	result = ExecuteTaskWithManagerAndContext(ctx, "test-worker", task, cliManager)
+	if !result.Success {
+		t.Errorf("Expected task to succeed for already completed task")
 	}
 }
