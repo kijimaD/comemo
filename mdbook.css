@@ -26,10 +26,14 @@ figcaption {
 }
 
 div #content {
-  line-height: 1em;
+  line-height: 100%;
   font-size: 94%;
 }
 
 .sidebar {
   background-color: var(--bs-white);
+}
+
+#menu-bar {
+  border-block-end-color: var(--bs-white) !important;
 }
