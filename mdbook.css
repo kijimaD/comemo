@@ -24,3 +24,12 @@ figcaption {
   padding: 4px;
   color: var(--bs-dark);
 }
+
+div #content {
+  line-height: 1em;
+  font-size: 94%;
+}
+
+.sidebar {
+  background-color: var(--bs-white);
+}
