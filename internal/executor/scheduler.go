@@ -625,8 +625,11 @@ func (s *Scheduler) isAllCompleted() bool {
 func (s *Scheduler) runWorker(cliName string, tasks <-chan Task) {
 	defer s.wg.Done()
 
-	// Use SimpleWorker for execution with context
-	SimpleWorkerWithContext(s.ctx, fmt.Sprintf("Worker-%s", cliName), tasks, s.results, s.cliManager)
+	// Create dedicated worker instance
+	worker := NewWorker(fmt.Sprintf("Worker-%s", cliName), s.cliManager)
+
+	// Use Worker.Run method for execution
+	worker.Run(s.ctx, tasks, s.results)
 }
 
 // ExecuteScriptSync executes a script synchronously and returns the result
