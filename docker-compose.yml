@@ -1,0 +1,13 @@
+services:
+  comemo-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: comemo-server
+    ports:
+      - "3003:3003"
+    volumes:
+      - ./:/work
+    working_dir: /work
+    restart: always
+    command: bash -c "mdbook serve -p 3003 -n 0.0.0.0"
