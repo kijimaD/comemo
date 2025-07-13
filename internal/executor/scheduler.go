@@ -201,54 +201,6 @@ func (s *Scheduler) Stop() {
 	}
 }
 
-// assignScript assigns a script to an available CLI queue if there's capacity
-func (s *Scheduler) assignScript(script string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.logger.Debug("=== スクリプト割り当て判定: %s ===", script)
-
-	// Check new state management
-	scriptState := s.scriptStateMgr.GetScript(script)
-	if scriptState == nil {
-		s.logger.Debug("  → スクリプト状態が見つからない")
-		return
-	}
-
-	// Skip if already completed or failed
-	if scriptState.State == StateCompleted || scriptState.State == StateFailed {
-		s.logger.Debug("  → 既に完了済みまたは失敗 (状態: %s)", scriptState.State.String())
-		return
-	}
-
-	// Find best available CLI with queue capacity
-	bestCLI := s.selectBestCLIWithCapacity()
-
-	if bestCLI != "" {
-		s.logger.Debug("  → %s にキューイング", bestCLI)
-
-		// Add script to queue using QueueManager
-		if s.queueManager.Enqueue(bestCLI, script) {
-			s.logger.Debug("  → %s にキューイング完了: %s (キュー長: %d)", bestCLI, script, s.queueManager.Length(bestCLI))
-
-			// Try to execute first script in queue if worker has capacity
-			if task := s.queueManager.ProcessQueue(bestCLI); task != nil {
-				// Non-blocking send
-				select {
-				case s.workers[bestCLI] <- *task:
-					s.scriptStateMgr.SetScriptProcessing(task.Script, bestCLI)
-					s.statusManager.RecordScriptStart(task.Script, bestCLI)
-					s.logger.Debug("  → %s で実行開始: %s", bestCLI, task.Script)
-				default:
-					s.logger.Debug("  → %s のワーカーがビジー、キューに待機", bestCLI)
-				}
-			}
-		}
-	} else {
-		s.logger.Debug("  → 利用可能なCLIなしまたは全CLIのキューが満杯")
-	}
-}
-
 // selectBestCLIWithCapacity selects the best available CLI with queue capacity
 func (s *Scheduler) selectBestCLIWithCapacity() string {
 	var availableCLIs []string
@@ -572,28 +524,6 @@ func (s *Scheduler) handleWorkerResult(result WorkerResult) {
 // queueScript queues a script for execution on a specific CLI
 func (s *Scheduler) queueScript(script string, cliName string) bool {
 	return s.queueManager.Enqueue(cliName, script)
-}
-
-// removeFromQueue removes a specific script from a CLI's queue
-func (s *Scheduler) removeFromQueue(cliName, script string) {
-	if s.queueManager.Remove(cliName, script) {
-		// Try to start next script in queue
-		s.tryExecuteNextInQueue(cliName)
-	}
-}
-
-// tryExecuteNextInQueue tries to execute the next script in the queue
-func (s *Scheduler) tryExecuteNextInQueue(cliName string) {
-	if task := s.queueManager.ProcessQueue(cliName); task != nil {
-		// Non-blocking send
-		select {
-		case s.workers[cliName] <- *task:
-			s.statusManager.RecordScriptStart(task.Script, cliName)
-			s.logger.Debug("  → 次のスクリプトを実行開始: %s", task.Script)
-		default:
-			s.logger.Debug("  → %s のワーカーがビジー", cliName)
-		}
-	}
 }
 
 // isAllCompleted checks if all scripts have been processed

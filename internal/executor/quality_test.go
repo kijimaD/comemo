@@ -12,7 +12,9 @@ func TestValidateGeneratedContent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		_ = os.RemoveAll(tmpDir) // テストクリーンアップなのでエラーは無視
+	}()
 
 	tests := []struct {
 		name          string

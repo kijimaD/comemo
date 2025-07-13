@@ -125,7 +125,7 @@ func (l *Logger) log(level LogLevel, format string, args ...interface{}) {
 		writer = l.output
 	}
 
-	fmt.Fprintf(writer, "[%s] %s: %s\n", timestamp, level.String(), message)
+	_, _ = fmt.Fprintf(writer, "[%s] %s: %s\n", timestamp, level.String(), message) // ログ出力エラーは無視
 }
 
 // logf writes a formatted message at the specified level without timestamp/level prefix
@@ -142,7 +142,7 @@ func (l *Logger) logf(level LogLevel, format string, args ...interface{}) {
 		writer = l.output
 	}
 
-	fmt.Fprintf(writer, format, args...)
+	_, _ = fmt.Fprintf(writer, format, args...) // ログ出力エラーは無視
 }
 
 // Debug logs a debug message

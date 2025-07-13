@@ -11,7 +11,6 @@ type ExecutionStatus struct {
 	Queue       *QueueStatus             `json:"queue"`
 	Performance *PerformanceMetrics      `json:"performance"`
 	Errors      *ErrorStatus             `json:"errors"`
-	mu          sync.RWMutex
 }
 
 // WorkerStatus represents the status of a single CLI worker

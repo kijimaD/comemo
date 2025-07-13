@@ -208,8 +208,10 @@ func TestScheduler_ExecuteScriptSync(t *testing.T) {
 
 		// This would block waiting for result in real scenario
 		// For test, we'll just verify the queue structure
-		if scheduler.queueManager.Length("claude") > 0 {
+		queueLength := scheduler.queueManager.Length("claude")
+		if queueLength > 0 {
 			// Script was queued by the sync call setup
+			t.Logf("Queue length for claude: %d", queueLength)
 		}
 	})
 }

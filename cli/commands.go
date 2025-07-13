@@ -136,7 +136,11 @@ func CreateApp() *cli.Command {
 						if err != nil {
 							return fmt.Errorf("failed to open task log file: %w", err)
 						}
-						defer f.Close()
+						defer func() {
+							if err := f.Close(); err != nil {
+								fmt.Fprintf(os.Stderr, "Warning: failed to close task log file: %v\n", err)
+							}
+						}()
 						taskLogWriter = f
 					}
 
@@ -148,7 +152,11 @@ func CreateApp() *cli.Command {
 						if err != nil {
 							return fmt.Errorf("failed to open event log file: %w", err)
 						}
-						defer f.Close()
+						defer func() {
+							if err := f.Close(); err != nil {
+								fmt.Fprintf(os.Stderr, "Warning: failed to close event log file: %v\n", err)
+							}
+						}()
 						taskEventLogger = executor.NewTaskEventLogger(f)
 					}
 
@@ -163,7 +171,9 @@ func CreateApp() *cli.Command {
 
 					// ファイルを明示的に閉じる
 					if taskLogWriter != nil {
-						taskLogWriter.Sync()
+						if err := taskLogWriter.Sync(); err != nil {
+							fmt.Fprintf(os.Stderr, "Warning: failed to sync task log writer: %v\n", err)
+						}
 					}
 
 					return err

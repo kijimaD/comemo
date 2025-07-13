@@ -252,6 +252,7 @@ func TestQueueManager_ProcessQueue(t *testing.T) {
 		task := qm.ProcessQueue("claude")
 		if task == nil {
 			t.Errorf("Expected task for non-empty queue")
+			return
 		}
 		if task.Script != "test1.sh" {
 			t.Errorf("Expected script to be 'test1.sh', got '%s'", task.Script)

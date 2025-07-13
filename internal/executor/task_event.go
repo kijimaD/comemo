@@ -74,7 +74,7 @@ func (l *TaskEventLogger) LogEvent(event *TaskEvent) {
 	}
 
 	output := event.ToJSON()
-	fmt.Fprintln(l.writer, output)
+	_, _ = fmt.Fprintln(l.writer, output) // ログ出力エラーは無視
 }
 
 // LogQueued logs a task queued event

@@ -113,7 +113,7 @@ func (e *EventStatusEntry) GetTimeUntilRetry() time.Duration {
 	if e.Status != EventStatusRetryWaiting {
 		return 0
 	}
-	remaining := e.NextRetryTime.Sub(time.Now())
+	remaining := time.Until(e.NextRetryTime)
 	if remaining < 0 {
 		return 0
 	}

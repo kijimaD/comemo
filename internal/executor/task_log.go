@@ -29,11 +29,11 @@ func LogTaskStart(w io.Writer, script, cli string) {
 		Script:    script,
 		CLI:       cli,
 	}
-	fmt.Fprintf(w, "[%s] %s script: %s, cli: %s\n",
+	_, _ = fmt.Fprintf(w, "[%s] %s script: %s, cli: %s\n",
 		entry.Timestamp.Format(time.RFC3339),
 		entry.Status,
 		entry.Script,
-		entry.CLI)
+		entry.CLI) // ログ出力エラーは無視
 }
 
 // LogTaskSuccess logs the successful completion of a task
@@ -74,7 +74,7 @@ func LogTaskSuccessWithDetails(w io.Writer, script, cli, output, executionOutput
 		logLine += fmt.Sprintf(", result: %s", sanitizedOutput)
 	}
 
-	fmt.Fprintln(w, logLine)
+	_, _ = fmt.Fprintln(w, logLine) // ログ出力エラーは無視
 }
 
 // LogTaskFailure logs the failure of a task
@@ -117,7 +117,7 @@ func LogTaskFailureWithDetails(w io.Writer, script, cli, errorMsg string, retryC
 		logLine += fmt.Sprintf(", output: %s", sanitizedOutput)
 	}
 
-	fmt.Fprintln(w, logLine)
+	_, _ = fmt.Fprintln(w, logLine) // ログ出力エラーは無視
 }
 
 // sanitizeOutput removes newlines and controls characters for single-line logging

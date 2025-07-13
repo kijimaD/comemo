@@ -163,11 +163,12 @@ func TestEventStatusManager_GetRetryReadyScripts(t *testing.T) {
 	// Check that the correct scripts are returned
 	foundReady1, foundReady2 := false, false
 	for _, script := range readyScripts {
-		if script == "ready1.sh" {
+		switch script {
+		case "ready1.sh":
 			foundReady1 = true
-		} else if script == "ready2.sh" {
+		case "ready2.sh":
 			foundReady2 = true
-		} else if script == "not_ready.sh" {
+		case "not_ready.sh":
 			t.Errorf("not_ready.sh should not be in ready scripts list")
 		}
 	}

@@ -28,7 +28,7 @@ lint: ## Run basic linting (vet + fmt check + golangci-lint)
 	@echo "Checking imports..."
 	@goimports -l ./internal/ ./cli/ main.go | grep -E '\.go$$' && echo "Imports need formatting. Run 'make goimports'" && exit 1 || echo "Imports are properly formatted"
 	@echo "Running golangci-lint..."
-	@golangci-lint run ./internal/... ./cli/...
+	@golangci-lint run -v ./internal/... ./cli/...
 
 .PHONY: tools-install
 tools-install: ## Install development tools

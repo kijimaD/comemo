@@ -215,7 +215,7 @@ echo "Test output"
 		assert.Contains(t, output.String(), "実行対象スクリプト数: 1")
 
 		// Clean up
-		os.Remove(scriptPath)
+		_ = os.Remove(scriptPath) // テストクリーンアップなのでエラーは無視
 	})
 
 	t.Run("successful execution with mock", func(t *testing.T) {
