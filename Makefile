@@ -37,8 +37,7 @@ tools-install: ## Install development tools
 		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin)
 
 .PHONY: check
-check: ## Run comprehensive code quality checks
-	fmt vet test
+check: build test fmt lint ## Run comprehensive code quality checks
 
 .PHONY: help
 help: ## ヘルプを表示する
