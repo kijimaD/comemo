@@ -1,21 +1,6 @@
-run:
-  timeout: 5m
-  skip-dirs:
-    - vendor
-    - book
-    - bin
-    - commit_data
-    - prompts
-    - src
-
+version: "2"
 linters:
-  disable-all: true
+  # standard: [errcheck govet ineffassign staticcheck unused]
+  default: standard
   enable:
-    - errcheck
-    - gofmt
-    - goimports
-    - ineffassign
-    - typecheck
-    - unused
-    - misspell
     - unconvert
