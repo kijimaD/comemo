@@ -258,6 +258,23 @@ func (w *Worker) handleExecutionError(task Task, err error, outputStr string, st
 	}
 }
 
+// cleanGeneratedContent removes any content before RequiredTitlePattern
+func (w *Worker) cleanGeneratedContent(content string) string {
+	// Find the position of the required title pattern
+	index := strings.Index(content, RequiredTitlePattern)
+	
+	// If pattern not found, return original content
+	if index == -1 {
+		w.logger.Debug("[%s] 警告: '%s' パターンが見つかりません", w.name, RequiredTitlePattern)
+		return content
+	}
+	
+	// Return content starting from the pattern
+	cleaned := content[index:]
+	w.logger.Debug("[%s] コンテンツ整形: %d文字削除", w.name, index)
+	return cleaned
+}
+
 // handleExecutionSuccess handles successful script execution
 func (w *Worker) handleExecutionSuccess(task Task, outputStr string, outputPath string, startTime time.Time) WorkerResult {
 	// Always write output to file (AI generates content to stdout, Go writes to file)
@@ -299,7 +316,18 @@ func (w *Worker) handleExecutionSuccess(task Task, outputStr string, outputPath 
 
 // handleQualitySuccess handles successful quality validation
 func (w *Worker) handleQualitySuccess(task Task, outputStr string, outputPath string, startTime time.Time) WorkerResult {
-	// Quality check passed - delete the script file on success
+	// Quality check passed - clean and re-save the content
+	cleanedOutput := w.cleanGeneratedContent(outputStr)
+	
+	// Re-write the cleaned content to file
+	if len(cleanedOutput) > 0 {
+		if err := os.WriteFile(outputPath, []byte(cleanedOutput), 0644); err != nil {
+			w.logger.Warn("[%s] Failed to re-write cleaned content: %v", w.name, err)
+			// Continue even if re-write fails, as original content is already saved
+		}
+	}
+	
+	// Delete the script file on success
 	scriptPath := filepath.Join(w.cliManager.Config.PromptsDir, task.Script)
 	if err := os.Remove(scriptPath); err != nil {
 		w.logger.Warn("[%s] Failed to delete script: %v", w.name, err)
@@ -310,16 +338,16 @@ func (w *Worker) handleQualitySuccess(task Task, outputStr string, outputPath st
 	duration := time.Since(startTime)
 
 	// Log task success with details
-	w.logTaskSuccess(task, outputPath, outputStr, duration)
+	w.logTaskSuccess(task, outputPath, cleanedOutput, duration)
 
 	// Record success in event status management
-	w.recordExecutionSuccess(task, duration, outputPath, outputStr)
+	w.recordExecutionSuccess(task, duration, outputPath, cleanedOutput)
 
 	return WorkerResult{
 		Script:   task.Script,
 		CLI:      task.CLI,
 		Success:  true,
-		Output:   outputStr,
+		Output:   cleanedOutput,
 		Duration: duration,
 	}
 }

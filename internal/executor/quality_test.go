@@ -22,7 +22,7 @@ func TestValidateGeneratedContent(t *testing.T) {
 	}{
 		{
 			name: "valid content",
-			content: `# [インデックス 123] ファイルの概要
+			content: RequiredTitlePattern + ` 123] ファイルの概要
 
 ## 技術的詳細
 詳細な説明がここに続きます。この文章は500文字を超えるために十分な長さを持っています。
@@ -57,7 +57,7 @@ Goの技術的詳細について説明します。コミットの変更内容を
 		},
 		{
 			name: "contains error message",
-			content: `# [インデックス 123] ファイルの概要
+			content: RequiredTitlePattern + ` 123] ファイルの概要
 
 ## 技術的詳細
 API Error: 何かがうまくいきませんでした。この文章は500文字を超えるために十分な長さを持っています。

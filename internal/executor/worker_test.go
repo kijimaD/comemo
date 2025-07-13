@@ -6,6 +6,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -476,6 +477,59 @@ func TestCreateWorkerAndRun(t *testing.T) {
 		// Worker finished as expected
 	case <-time.After(1 * time.Second):
 		t.Errorf("Worker did not finish within timeout after channel close")
+	}
+}
+
+func TestWorker_CleanGeneratedContent(t *testing.T) {
+	// Create test CLI manager
+	cliManager := &CLIManager{
+		Options: &ExecutorOptions{
+			Logger: logger.Silent(),
+		},
+	}
+
+	// Create worker
+	worker := NewWorker("test-worker", cliManager)
+
+	testCases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "正常なマークダウン（マーカーが先頭）",
+			input:    RequiredTitlePattern + "\n\n## 目次\n\n内容",
+			expected: RequiredTitlePattern + "\n\n## 目次\n\n内容",
+		},
+		{
+			name:     "不要なコンテンツを含む",
+			input:    "不要なテキスト\nここも不要\n" + RequiredTitlePattern + "\n\n## 目次\n\n内容",
+			expected: RequiredTitlePattern + "\n\n## 目次\n\n内容",
+		},
+		{
+			name:     "マーカーが存在しない",
+			input:    "## タイトル\n\n内容",
+			expected: "## タイトル\n\n内容",
+		},
+		{
+			name:     "空文字列",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "マーカーの前に大量のテキスト",
+			input:    strings.Repeat("garbage ", 1000) + "\n" + RequiredTitlePattern + "\n\n内容",
+			expected: RequiredTitlePattern + "\n\n内容",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := worker.cleanGeneratedContent(tc.input)
+			if result != tc.expected {
+				t.Errorf("Expected cleaned content to be '%s', got '%s'", tc.expected, result)
+			}
+		})
 	}
 }
 

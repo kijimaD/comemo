@@ -37,7 +37,7 @@ func ValidateGeneratedContent(outputPath string) (*QualityCheckResult, error) {
 
 	// Check for required content patterns
 	requiredPatterns := []string{
-		"# [インデックス",
+		RequiredTitlePattern,
 		"## コミット",
 		"## GitHub上でのコミットページへのリンク",
 		"## 元コミット内容",
