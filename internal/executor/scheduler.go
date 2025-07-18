@@ -447,30 +447,19 @@ func (s *Scheduler) handleWorkerResult(result WorkerResult) {
 		return
 	}
 
-	// Check if retry limit exceeded
-	if scriptState.RetryCount >= scriptState.MaxRetries {
-		s.logger.Error("  → リトライ上限到達: %s (%d/%d)", result.Script, scriptState.RetryCount, scriptState.MaxRetries)
-		s.scriptStateMgr.SetScriptFailed(result.Script, errorMsg)
-		s.queueManager.MarkScriptProcessed(result.CLI, result.Script)
-		// Update old state management for compatibility
-		s.failed[result.Script] = s.retryLimit
-		s.statusManager.RecordScriptComplete(result.Script, result.CLI, false, result.Duration, errorMsg)
-		return
-	}
-
-	// Determine retry reason and set script to retrying state
+	// Determine retry reason first to decide whether to increment count
 	var retryReason RetryReason
+	var willIncrementRetryCount bool
+
 	if result.IsQuotaError {
 		s.logger.Debug("  → Quotaエラー: CLI %s を設定時間スリープ（リトライカウント増加なし）", result.CLI)
 		retryReason = RetryReasonQuotaError
+		willIncrementRetryCount = false
 		// Set CLI unavailable for configured duration
 		retryDelay := s.config.RetryDelays.QuotaError
 		s.cliManager.MarkUnavailableForDuration(result.CLI, retryDelay)
 		s.statusManager.UpdateWorkerStatus(result.CLI, false, "", retryDelay)
 		s.statusManager.RecordQuotaError(result.Script, result.CLI, result.Duration)
-
-		// Use special quota error handling that doesn't increment retry count
-		s.scriptStateMgr.SetScriptQuotaExceeded(result.Script, errorMsg)
 	} else {
 		// Classify error to determine retry reason
 		errorType := ClassifyError(result.Error, result.Output)
@@ -482,9 +471,32 @@ func (s *Scheduler) handleWorkerResult(result WorkerResult) {
 			s.logger.Debug("  → その他のエラー: 通常待機後リトライ")
 			retryReason = RetryReasonOtherError
 		}
+		willIncrementRetryCount = true
 		// Record as retry error with specific error message
 		s.statusManager.RecordRetryError(result.Script, result.CLI, result.Duration, errorMsg)
+	}
 
+	// Check if retry limit will be exceeded after this attempt
+	futureRetryCount := scriptState.RetryCount
+	if willIncrementRetryCount {
+		futureRetryCount++
+	}
+
+	if futureRetryCount >= scriptState.MaxRetries {
+		s.logger.Error("  → リトライ上限到達: %s (現在: %d, 上限: %d)", result.Script, futureRetryCount, scriptState.MaxRetries)
+		s.scriptStateMgr.SetScriptFailed(result.Script, errorMsg)
+		s.queueManager.MarkScriptProcessed(result.CLI, result.Script)
+		// Update old state management for compatibility
+		s.failed[result.Script] = s.retryLimit
+		s.statusManager.RecordScriptComplete(result.Script, result.CLI, false, result.Duration, errorMsg)
+		return
+	}
+
+	// Set script to retrying state with appropriate delay
+	if result.IsQuotaError {
+		// Use special quota error handling that doesn't increment retry count
+		s.scriptStateMgr.SetScriptQuotaExceeded(result.Script, errorMsg)
+	} else {
 		// Set script to retrying state with appropriate delay (increments retry count)
 		s.scriptStateMgr.SetScriptRetrying(result.Script, retryReason, errorMsg)
 	}

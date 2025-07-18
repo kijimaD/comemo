@@ -96,25 +96,10 @@ func TestFailedCountOnlyAfterRetryLimit(t *testing.T) {
 		afterSecondError := statusManager.GetStatus()
 		t.Logf("After second error - Failed: %d, Retrying: %d", afterSecondError.Queue.Failed, afterSecondError.Queue.Retrying)
 
-		// Failed count should still not increase until retry limit is exceeded
-		if afterSecondError.Queue.Failed != initialFailed {
-			t.Errorf("Expected failed count to remain %d after second error, but got %d", initialFailed, afterSecondError.Queue.Failed)
-		}
-
-		// Queue script again for third attempt (exceeds retry limit)
-		scheduler.queueScript("test1.sh", "claude")
-		statusManager.RecordScriptStart("test1.sh", "claude")
-
-		// Simulate third retryable error (exceeds retry limit)
-		scheduler.handleWorkerResult(result)
-
-		// Check status after retry limit exceeded
-		afterRetryLimit := statusManager.GetStatus()
-		t.Logf("After retry limit exceeded - Failed: %d, Retrying: %d", afterRetryLimit.Queue.Failed, afterRetryLimit.Queue.Retrying)
-
-		// Now failed count should increase
-		if afterRetryLimit.Queue.Failed != initialFailed+1 {
-			t.Errorf("Expected failed count to increase to %d after retry limit exceeded, but got %d", initialFailed+1, afterRetryLimit.Queue.Failed)
+		// With the fixed retry limit logic (>=), second error should now exceed limit
+		// because RetryCount (2) >= MaxRetries (2)
+		if afterSecondError.Queue.Failed != initialFailed+1 {
+			t.Errorf("Expected failed count to increase to %d after retry limit exceeded (2nd error), but got %d", initialFailed+1, afterSecondError.Queue.Failed)
 		}
 
 		// Check that script state is failed
