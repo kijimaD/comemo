@@ -25,20 +25,26 @@ figcaption {
   color: var(--bs-dark);
 }
 
-.content p {
-  font-size: 90%;
-  line-height: 110%;
-}
-
-.content li {
-  font-size: 90%;
-  line-height: 110%;
-}
-
 .sidebar {
   background-color: var(--bs-white);
 }
 
 #menu-bar {
   border-block-end-color: var(--bs-white) !important;
+}
+
+.content main {
+  max-width: 500px;
+}
+
+.content p {
+  font-size: 0.9em;
+}
+
+.content li {
+  font-size: 0.9em;
+}
+
+.content code {
+  font-size: 0.9em;
 }
