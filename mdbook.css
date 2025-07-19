@@ -25,9 +25,14 @@ figcaption {
   color: var(--bs-dark);
 }
 
-div #content {
-  line-height: 100%;
-  font-size: 94%;
+.content p {
+  font-size: 90%;
+  line-height: 110%;
+}
+
+.content li {
+  font-size: 90%;
+  line-height: 110%;
 }
 
 .sidebar {
